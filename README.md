@@ -1,8 +1,8 @@
-# Streamify
+# Streamify Azure Snowflake
 
 中文 | [English](README.en.md)
 
-本项目基于 [原始 Streamify 项目](https://github.com/ankurchavda/streamify)，在 Azure 上重新实现数据流水线，用 Snowflake 替代 BigQuery 作为数仓。
+这是基于 [原始 Streamify 项目](https://github.com/ankurchavda/streamify) 的独立改造版本，完整保留上游 Git 历史和作者信息。项目在 Azure 上重新实现数据流水线，用 Snowflake 替代 BigQuery 作为数仓。
 Kafka、开源 Spark 和 Airflow 使用 Azure VM 与 Docker 部署，基础设施由 Terraform 管理。
 
 ## 项目做什么

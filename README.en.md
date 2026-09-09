@@ -1,8 +1,8 @@
-# Streamify
+# Streamify Azure Snowflake
 
 [中文](README.md) | English
 
-This project adapts the [original Streamify project](https://github.com/ankurchavda/streamify) to Azure, using Snowflake instead of BigQuery as the warehouse.
+This is an independent adaptation of the [original Streamify project](https://github.com/ankurchavda/streamify), with the upstream Git history and authorship preserved. It rebuilds the pipeline on Azure and uses Snowflake instead of BigQuery as the warehouse.
 Kafka, open-source Spark, and Airflow run in Docker on Azure VMs. Terraform manages the infrastructure.
 
 ## What it does

@@ -1,99 +1,53 @@
-## Setup Airflow VM
+# 在 Azure VM 上安装 Airflow
 
-![airflow](../images/airflow.jpg)
+中文 | [English](airflow.en.md)
 
-We will setup airflow on docker in a dedicated compute instance. dbt is setup inside airflow.
+Airflow 运行在独立 VM 的 Docker Compose 中。本阶段只启动 Airflow，不改造或运行原项目 DAG。
 
-- Establish SSH connection
+## 1. 准备 VM
 
-  ```bash
-  ssh streamify-airflow
-  ```
+从 Mac 登录并获取项目：
 
-- Clone git repo
+```bash
+ssh streamify-airflow
+git clone https://github.com/LumosLiang/streamify-azure-snowflake.git
+cd streamify-azure-snowflake
+bash scripts/vm_setup.sh
+```
 
-  ```bash
-  git clone https://github.com/ankurchavda/streamify.git && \
-  cd streamify
-  ```
-- Install anaconda, docker & docker-compose.
+退出后重新登录，使 Docker 用户组权限生效：
 
-  ```bash
-  bash ~/streamify/scripts/vm_setup.sh && \
-  exec newgrp docker
-  ```
-- Move the service account json file from local to the VM machine in `~/.google/credentials/` directory.  Make sure it is named as `google_credentials.json`  else the dags will fail!
+```bash
+exit
+ssh streamify-airflow
+cd streamify-azure-snowflake
+```
 
-  - You can use [sftp](https://youtu.be/ae-CV2KfoN0?t=2442) to transfer the file.
+## 2. 创建本地配置
 
-- Set the evironment variables (same as Terraform values)-
+```bash
+cp airflow/.env.example airflow/.env
+sed -i "s/^AIRFLOW_UID=.*/AIRFLOW_UID=$(id -u)/" airflow/.env
+```
 
-  - GCP Project ID
+编辑 `airflow/.env`，填写 Snowflake 连接参数。该文件包含密码，已被 Git 忽略，不要提交。
 
-  - Cloud Storage Bucket Name
+## 3. 启动并验证
 
-    ```bash
-    export GCP_PROJECT_ID=project-id
-    export GCP_GCS_BUCKET=bucket-name
-    ```
+启动脚本需要项目位于 `~/streamify`。当前目录名不同时，先创建链接：
 
-    **Note**: You will have to setup these env vars every time you create a new shell session.
+```bash
+ln -sfn "$HOME/streamify-azure-snowflake" "$HOME/streamify"
+bash scripts/airflow_startup.sh
+cd airflow
+docker compose ps
+```
 
-- Start Airflow. (This shall take a few good minutes, grab a coffee!)
+按 [SSH 端口转发](ssh.md#4-端口转发) 打开 `http://localhost:8080`。默认用户名和密码均为 `airflow`。
 
-  ```bash
-  bash ~/streamify/scripts/airflow_startup.sh && cd ~/streamify/airflow
-  ```
+```bash
+docker compose logs --follow
+docker compose down
+```
 
-- Airflow should be available on port `8080` a couple of minutes after the above setup is complete. Login with default username & password as **airflow**.
-
-- Airflow will be running in detached mode. To see the logs from docker run the below command
-
-  ```bash
-  docker-compose --follow
-  ```
-
-- To stop airflow
-
-  ```bash
-  docker-compose down
-  ```
-
-### DAGs
-
-The setup has two dags
-- `load_songs_dag`
-  - Trigger first and only once to load a onetime song file into BigQuery
-![songs_dag](../images/songs_dag.png)
-
-- `streamify_dag`
-  - Trigger after `load_songs_dag` to make sure the songs table table is available for the transformations
-  - This dag will run hourly at the 5th minute and perform transformations to create the dimensions and fact.
-![streamify_dag](../images/streamify_dag.png)
-
-  - DAG Flow -
-    - We first create an external table for the data that was received in the past hour.
-    - We then create an empty table to which our hourly data will be appended. Usually, this will only ever run in the first run.
-    - Then we insert or append the hourly data, into the table.
-    - And then, delete the external table.
-    - Finally, run the dbt transformation, to create our dimensions and facts.
-
-### dbt
-
-The transformations happen using dbt which is triggered by Airflow. The dbt lineage should look something like this -
-
-![img](../images/dbt.png)
-
-Dimensions:
-- `dim_artists`
-- `dim_songs`
-- `dim_datetime`
-- `dim_location`
-- `dim_users`
-
-Facts:
-- `fact_streams`
-  - Partitioning:
-    - Data is partitioned on the timestamp column by hour to provide faster data updates for a dashboard that shows data for the last few hours.
-
-Finally, we create `wide_stream` view to aid dashboarding.
+原始 DAG 仍是 GCP/BigQuery 版本，当前仅保留供阅读，出现 DAG import error 属于预期；适配工作留到后续步骤。

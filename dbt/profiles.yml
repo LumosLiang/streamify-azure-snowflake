@@ -1,25 +1,23 @@
 streamify:
   outputs:
     dev:
-      dataset: streamify_stg
-      fixed_retries: 1
-      keyfile: /.google/credentials/google_credentials.json
-      location: us-central1
-      method: service-account
-      priority: interactive
-      project: "{{ env_var('GCP_PROJECT_ID') }}"
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE', 'TRANSFORMER') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE', 'STREAMIFY') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE', 'TRANSFORMING') }}"
+      schema: STREAMIFY_STG
       threads: 4
-      timeout_seconds: 300
-      type: bigquery
     prod:
-      dataset: streamify_prod
-      fixed_retries: 1
-      keyfile: /.google/credentials/google_credentials.json
-      location: us-central1
-      method: service-account
-      priority: interactive
-      project: "{{ env_var('GCP_PROJECT_ID') }}"
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE', 'TRANSFORMER') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE', 'STREAMIFY') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE', 'TRANSFORMING') }}"
+      schema: STREAMIFY_PROD
       threads: 4
-      timeout_seconds: 300
-      type: bigquery
   target: dev

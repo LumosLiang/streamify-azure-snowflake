@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:18.6
+    environment:
+      POSTGRES_USER: polaris
+      POSTGRES_PASSWORD: ${POLARIS_DB_PASSWORD:?Set POLARIS_DB_PASSWORD}
+      POSTGRES_DB: polaris
+    volumes:
+      - polaris-db:/var/lib/postgresql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U polaris -d polaris"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  bootstrap:
+    image: apache/polaris-admin-tool:1.7.0
+    environment: &polaris-database
+      POLARIS_PERSISTENCE_TYPE: relational-jdbc
+      QUARKUS_DATASOURCE_USERNAME: polaris
+      QUARKUS_DATASOURCE_PASSWORD: ${POLARIS_DB_PASSWORD:?Set POLARIS_DB_PASSWORD}
+      QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgres:5432/polaris?currentSchema=polaris_schema
+    command:
+      - bootstrap
+      - -r
+      - POLARIS
+      - -c
+      - POLARIS,${POLARIS_CLIENT_ID:?Set POLARIS_CLIENT_ID},${POLARIS_CLIENT_SECRET:?Set POLARIS_CLIENT_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  polaris:
+    image: apache/polaris:1.7.0
+    environment:
+      <<: *polaris-database
+      POLARIS_REALM_CONTEXT_REALMS: POLARIS
+      JAVA_OPTS_APPEND: -Xms512m -Xmx1536m
+    ports:
+      - "8181:8181"
+      - "8182:8182"
+    depends_on:
+      bootstrap:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  polaris-db:

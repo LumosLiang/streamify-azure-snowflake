@@ -1,7 +1,10 @@
 #!/bin/bash
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+
 echo "Building airflow docker images..."
-cd ~/streamify/airflow
+cd "$REPO_ROOT/airflow"
 docker compose build
 
 echo "Running airflow-init..."

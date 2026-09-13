@@ -10,8 +10,8 @@ Connect from your Mac and get the project:
 
 ```bash
 ssh streamify-airflow
-git clone https://github.com/LumosLiang/streamify-azure-snowflake.git
-cd streamify-azure-snowflake
+git clone https://github.com/LumosLiang/streamify-azure-snowflake.git streamify
+cd streamify
 bash scripts/vm_setup.sh
 ```
 
@@ -20,7 +20,7 @@ Log out and reconnect so Docker group membership takes effect:
 ```bash
 exit
 ssh streamify-airflow
-cd streamify-azure-snowflake
+cd streamify
 ```
 
 ## 2. Create the local configuration
@@ -34,14 +34,13 @@ See [Initialize Snowflake](../airflow/snowflake_setup.en.md) to create the user 
 
 ## 3. Start and verify
 
-The startup script expects the project at `~/streamify`. If the directory has a different name, create a link first:
-
 ```bash
-ln -sfn "$HOME/streamify-azure-snowflake" "$HOME/streamify"
 bash scripts/airflow_startup.sh
 cd airflow
 docker compose ps
 ```
+
+The startup script finds the project relative to its own location, so no symbolic link is needed when the repository is stored elsewhere.
 
 Use [SSH port forwarding](ssh.en.md#4-port-forwarding) and open `http://localhost:8080`. The default username and password are both `airflow`.
 

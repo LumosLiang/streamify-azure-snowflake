@@ -45,10 +45,20 @@ grep -v '^-----' airflow/secrets/snowflake_rsa_key.pub | tr -d '\n'
 ## 3. 配置 Airflow VM
 
 ```bash
-cp airflow/.env.example airflow/.env
+test -f airflow/.env || cp airflow/.env.example airflow/.env
 ```
 
-填写 `SNOWFLAKE_ACCOUNT`，并把生成私钥时设置的 passphrase 写入 `SNOWFLAKE_PRIVATE_KEY_PASSPHRASE`。其余 Snowflake 值已经与 SQL 对齐。
+`airflow/.env` 被 Git 忽略，因此已有文件不会随 `git pull` 更新。打开它，删除旧的 `SNOWFLAKE_PASSWORD`，并确认包含：
+
+```dotenv
+SNOWFLAKE_USER=STREAMIFY_DBT
+SNOWFLAKE_PRIVATE_KEY_PATH=/opt/airflow/secrets/snowflake_rsa_key.p8
+SNOWFLAKE_PRIVATE_KEY_PASSPHRASE=<生成私钥时输入的口令>
+SNOWFLAKE_ROLE=STREAMIFY_TRANSFORMER
+SNOWFLAKE_DATABASE=STREAMIFY
+SNOWFLAKE_WAREHOUSE=STREAMIFY_TRANSFORM_WH
+```
+
+另外填写 `SNOWFLAKE_ACCOUNT`。`SNOWFLAKE_PRIVATE_KEY_PASSPHRASE` 是运行 `openssl pkcs8` 时由你设置的口令。
 
 按照 [Airflow setup](../setup/airflow.md) 构建镜像，再按照 [dbt setup](../setup/dbt.md) 执行 `dbt debug`。
-

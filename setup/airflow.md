@@ -10,8 +10,8 @@ Airflow 运行在独立 VM 的 Docker Compose 中。本阶段只启动 Airflow�
 
 ```bash
 ssh streamify-airflow
-git clone https://github.com/LumosLiang/streamify-azure-snowflake.git
-cd streamify-azure-snowflake
+git clone https://github.com/LumosLiang/streamify-azure-snowflake.git streamify
+cd streamify
 bash scripts/vm_setup.sh
 ```
 
@@ -20,7 +20,7 @@ bash scripts/vm_setup.sh
 ```bash
 exit
 ssh streamify-airflow
-cd streamify-azure-snowflake
+cd streamify
 ```
 
 ## 2. 创建本地配置
@@ -34,14 +34,13 @@ Snowflake 用户和密钥的创建步骤见 [Snowflake 初始化](../airflow/sno
 
 ## 3. 启动并验证
 
-启动脚本需要项目位于 `~/streamify`。当前目录名不同时，先创建链接：
-
 ```bash
-ln -sfn "$HOME/streamify-azure-snowflake" "$HOME/streamify"
 bash scripts/airflow_startup.sh
 cd airflow
 docker compose ps
 ```
+
+启动脚本根据自己的位置查找项目目录，因此仓库放在其他目录时也不需要创建软链接。
 
 按 [SSH 端口转发](ssh.md#4-端口转发) 打开 `http://localhost:8080`。默认用户名和密码均为 `airflow`。
 

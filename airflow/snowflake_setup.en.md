@@ -45,9 +45,20 @@ Run the final `ADD KEY PAIR` statement only once. Skip it when rerunning the res
 ## 3. Configure the Airflow VM
 
 ```bash
-cp airflow/.env.example airflow/.env
+test -f airflow/.env || cp airflow/.env.example airflow/.env
 ```
 
-Set `SNOWFLAKE_ACCOUNT` and put the passphrase chosen above in `SNOWFLAKE_PRIVATE_KEY_PASSPHRASE`. The remaining Snowflake values already match the SQL setup.
+`airflow/.env` is ignored by Git, so an existing file is not updated by `git pull`. Open it, remove the old `SNOWFLAKE_PASSWORD`, and make sure it contains:
+
+```dotenv
+SNOWFLAKE_USER=STREAMIFY_DBT
+SNOWFLAKE_PRIVATE_KEY_PATH=/opt/airflow/secrets/snowflake_rsa_key.p8
+SNOWFLAKE_PRIVATE_KEY_PASSPHRASE=<passphrase-entered-while-generating-the-key>
+SNOWFLAKE_ROLE=STREAMIFY_TRANSFORMER
+SNOWFLAKE_DATABASE=STREAMIFY
+SNOWFLAKE_WAREHOUSE=STREAMIFY_TRANSFORM_WH
+```
+
+Also set `SNOWFLAKE_ACCOUNT`. `SNOWFLAKE_PRIVATE_KEY_PASSPHRASE` is the passphrase you chose when running `openssl pkcs8`.
 
 Build the image using the [Airflow setup](../setup/airflow.en.md), then run `dbt debug` using the [dbt setup](../setup/dbt.en.md).

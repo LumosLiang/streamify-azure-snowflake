@@ -2,8 +2,8 @@
 
 中文 | [English](kafka.en.md)
 
-Kafka 和 Eventsim 在同一台 VM 的独立容器中运行。保留原项目的 Confluent 5.4.0、ZooKeeper 和镜像版本，没有新增持久卷。
-已适配的部分是私网地址、Eventsim 堆内存和 Ubuntu 24.04 的安装步骤。
+Kafka 和 Eventsim 在同一台 VM 的独立容器中运行。Kafka 使用 Confluent Platform 7.9.9 的 KRaft 模式，不再使用 ZooKeeper，也没有新增持久卷。
+其他适配包括私网地址、Eventsim 堆内存和 Ubuntu 24.04 的安装步骤。
 
 ## 1. 准备项目
 

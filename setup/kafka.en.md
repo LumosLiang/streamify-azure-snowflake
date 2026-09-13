@@ -2,8 +2,8 @@
 
 [中文](kafka.md) | English
 
-Kafka and Eventsim run in separate containers on the same VM. The original Confluent 5.4.0, ZooKeeper, and image versions are retained. No persistent volumes have been added.
-The changes cover private addressing, the Eventsim heap limit, and installation on Ubuntu 24.04.
+Kafka and Eventsim run in separate containers on the same VM. Kafka uses Confluent Platform 7.9.9 in KRaft mode, without ZooKeeper or an added persistent volume.
+Other changes cover private addressing, the Eventsim heap limit, and installation on Ubuntu 24.04.
 
 ## 1. Prepare the project
 

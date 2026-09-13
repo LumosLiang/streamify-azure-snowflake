@@ -4,7 +4,7 @@
 # stream_all_events.py
 
 import os
-from spark_streaming.streaming_utils import *
+from streaming_utils import *
 from schema import schema
 
 # Kafka Topics

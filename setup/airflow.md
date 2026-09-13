@@ -30,7 +30,7 @@ cp airflow/.env.example airflow/.env
 sed -i "s/^AIRFLOW_UID=.*/AIRFLOW_UID=$(id -u)/" airflow/.env
 ```
 
-编辑 `airflow/.env`，填写 Snowflake 连接参数。该文件包含密码，已被 Git 忽略，不要提交。
+Snowflake 用户和密钥的创建步骤见 [Snowflake 初始化](../airflow/snowflake_setup.md)。编辑 `airflow/.env` 填写 account identifier 和私钥 passphrase。该文件已被 Git 忽略，不要提交。
 
 ## 3. 启动并验证
 

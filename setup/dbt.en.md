@@ -12,11 +12,12 @@ From the project directory on the Airflow VM:
 test -f airflow/.env || cp airflow/.env.example airflow/.env
 ```
 
-Set these values:
+Complete [Initialize Snowflake](../airflow/snowflake_setup.en.md), then check these values:
 
 - `SNOWFLAKE_ACCOUNT`: the Snowflake account identifier, such as `organization-account`
-- `SNOWFLAKE_USER`: the user for dbt
-- `SNOWFLAKE_PASSWORD`: that user's password
+- `SNOWFLAKE_USER`: the `STREAMIFY_DBT` service user
+- `SNOWFLAKE_PRIVATE_KEY_PATH`: the private-key path inside the container; keep the example default
+- `SNOWFLAKE_PRIVATE_KEY_PASSPHRASE`: the passphrase chosen when generating the private key
 - `SNOWFLAKE_ROLE`: the role used by dbt
 - `SNOWFLAKE_DATABASE`: the target database
 - `SNOWFLAKE_WAREHOUSE`: the warehouse that runs SQL

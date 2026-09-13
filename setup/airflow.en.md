@@ -30,7 +30,7 @@ cp airflow/.env.example airflow/.env
 sed -i "s/^AIRFLOW_UID=.*/AIRFLOW_UID=$(id -u)/" airflow/.env
 ```
 
-Edit `airflow/.env` and fill in the Snowflake connection values. It contains a password, is ignored by Git, and must not be committed.
+See [Initialize Snowflake](../airflow/snowflake_setup.en.md) to create the user and key pair. Edit `airflow/.env` and set the account identifier and private-key passphrase. This file is ignored by Git and must not be committed.
 
 ## 3. Start and verify
 
@@ -51,4 +51,3 @@ docker compose down
 ```
 
 The original DAGs still target GCP and BigQuery. They are retained for reading, so DAG import errors are expected until a later adaptation step.
-

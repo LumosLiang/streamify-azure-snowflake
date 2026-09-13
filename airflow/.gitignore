@@ -2,3 +2,4 @@ logs/
 plugins/
 __pycache__/
 .env
+secrets/

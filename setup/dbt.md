@@ -12,11 +12,12 @@ dbt 安装在 Airflow 自定义镜像中。本阶段只建立 Snowflake 连接�
 test -f airflow/.env || cp airflow/.env.example airflow/.env
 ```
 
-填写以下值：
+先完成 [Snowflake 初始化](../airflow/snowflake_setup.md)，然后确认以下值：
 
 - `SNOWFLAKE_ACCOUNT`：Snowflake account identifier，例如 `组织名-账号名`
-- `SNOWFLAKE_USER`：dbt 使用的用户
-- `SNOWFLAKE_PASSWORD`：该用户的密码
+- `SNOWFLAKE_USER`：`STREAMIFY_DBT` service user
+- `SNOWFLAKE_PRIVATE_KEY_PATH`：容器中的私钥路径，使用示例默认值
+- `SNOWFLAKE_PRIVATE_KEY_PASSPHRASE`：生成私钥时设置的 passphrase
 - `SNOWFLAKE_ROLE`：dbt 使用的角色
 - `SNOWFLAKE_DATABASE`：目标数据库
 - `SNOWFLAKE_WAREHOUSE`：执行 SQL 的 warehouse

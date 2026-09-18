@@ -88,13 +88,13 @@ terraform apply
 
 ## 4. 默认资源
 
-| 原 GCP 资源 | Azure 对应 |
+| 资源 | 当前配置 |
 | --- | --- |
 | Kafka VM | 1 台 D4as v5：4 核、16 GiB |
 | Airflow VM | 1 台 E2as v5：2 核、16 GiB |
-| Dataproc：1 Master + 2 Workers | 3 台 D2as v5：每台 2 核、8 GiB，Spark 另行安装 |
-| GCS bucket | 1 个 ADLS Gen2 Storage Account + `streamify` 容器 |
-| BigQuery STG / PROD | 此配置不创建；后续在现有 AWS Snowflake 中配置 |
+| Spark master + 两个 worker | 3 台 D2as v5：每台 2 核、8 GiB，Spark 另行安装 |
+| 数据湖 | 1 个 ADLS Gen2 Storage Account + `streamify` 容器 |
+| Snowflake | Terraform 不创建；在现有 AWS 账号中按 [Snowflake 初始化](../snowflake/README.md) 配置 |
 
 每台 VM 使用 Ubuntu 24.04 和 32 GiB Standard SSD 系统盘。
 网络资源包括 Resource Group、VNet、Subnet、NSG、网卡和公网 IP。
@@ -116,7 +116,7 @@ Snowflake 外部 Stage 对应的地址为：
 azure://<account-name>.blob.core.windows.net/streamify/
 ```
 
-没有沿用原 GCP 全桶 30 天删除规则，避免清理正在使用的 checkpoint。
+当前配置没有自动清理数据；checkpoint 需要保留供流处理作业恢复。
 
 <a id="runtime-identities"></a>
 
@@ -128,15 +128,13 @@ azure://<account-name>.blob.core.windows.net/streamify/
 | 在 Portal 查看 Blob 数据 | 你的 Azure 用户，Storage Blob Data Reader | Terraform 创建 |
 | Spark 读写 ADLS | VM Managed Identity，Storage Blob Data Contributor | Terraform 创建 |
 | Airflow 读取 ADLS | VM Managed Identity，Storage Blob Data Reader | Terraform 创建 |
-| AWS Snowflake 读取 ADLS | Snowflake 对应的 Azure Service Principal | 后续配置 Storage Integration 时授权 |
+| AWS Snowflake 读取 ADLS | Snowflake 对应的 Azure Service Principal | 按 [Snowflake 初始化](../snowflake/README.md) 授权 |
 
 Managed Identity 是 Azure 为 VM 管理的程序身份，不需要手动保存凭据。Terraform 创建身份和权限后，Spark 等程序仍需配置为使用这个身份访问存储。
 
 ## 5. State 和后续修改
 
-Azure state 保存在本地 `azure.tfstate`，与原 GCP 的 `terraform.tfstate` 分开。保留 state，Terraform 才能跟踪已创建的资源。
-
-如果这个目录此前初始化过 GCP backend，使用 `terraform init -reconfigure`，不要把 GCP state 迁入 Azure 配置。已有 GCP 资源仍需用原配置和原 state 管理。
+Azure state 保存在本地 `azure.tfstate`。保留 state，Terraform 才能跟踪已创建的资源。
 
 以后调整规格，修改 `terraform.tfvars` 或默认值，再运行 `terraform plan` 查看影响。计划可能包含停机或替换资源，确认后才执行 `apply`。
 

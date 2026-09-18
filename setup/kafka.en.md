@@ -2,8 +2,7 @@
 
 [中文](kafka.md) | English
 
-Kafka and Eventsim run in separate containers on the same VM. Kafka uses Confluent Platform 7.9.9 in KRaft mode, without ZooKeeper or an added persistent volume.
-Other changes cover private addressing, the Eventsim heap limit, and installation on Ubuntu 24.04.
+Kafka and Eventsim run in separate containers on the same VM. Kafka uses Confluent Platform 7.9.9 in KRaft mode without ZooKeeper. The Kafka Compose file has no persistent volume.
 
 ## 1. Prepare the project
 
@@ -14,7 +13,6 @@ ssh streamify-kafka
 ```
 
 Place the project, including the current changes, on the VM. Run the remaining commands from the **project root on the VM**.
-If using Git, make sure the remote branch contains the changes. Uncommitted local files are not copied automatically.
 The repository can be in any directory; the startup script finds Eventsim relative to its own location.
 
 ## 2. Install Docker and Compose
@@ -23,7 +21,7 @@ The repository can be in any directory; the startup script finds Eventsim relati
 bash scripts/vm_setup.sh
 ```
 
-The script installs Docker Engine and the Compose plugin from Docker's official Ubuntu repository. It does not install Anaconda or GCP tools.
+The script installs Docker Engine and the Compose plugin from Docker's official Ubuntu repository.
 Run `exit` and reconnect over SSH to pick up Docker group membership. Return to the project root and check:
 
 ```bash

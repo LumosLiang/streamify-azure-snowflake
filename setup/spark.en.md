@@ -2,9 +2,7 @@
 
 [中文](spark.md) | English
 
-![spark](../images/spark.jpg)
-
-This project does not use Dataproc, EMR, or HDInsight. Terraform creates three ordinary Azure VMs for Spark: one master and two workers. Spark runs in standalone mode. Kafka runs on a separate VM, and Spark accesses it through the Kafka VM's private address on port `9092`.
+Terraform creates three Azure VMs for Spark: one master and two workers. Spark runs in standalone mode. Kafka runs on a separate VM, and Spark accesses it through the Kafka VM's private address on port `9092`.
 
 Terraform creates the infrastructure only. It does not install or start Spark. Complete the [Terraform deployment](terraform.en.md), [SSH setup](ssh.en.md), and [Kafka deployment](kafka.en.md) first.
 
@@ -55,7 +53,7 @@ The Spark Web UI listens on the master's port `8080` by default. See the [SSH gu
 On the master, enter the streaming directory and set:
 
 ```bash
-cd ~/streamify/spark_streaming
+cd ~/streamify-azure-snowflake/spark_streaming
 export SPARK_MASTER_URL="spark://<spark-master-private-ip>:7077"
 export KAFKA_ADDRESS="<kafka-private-ip>"
 export AZURE_STORAGE_ACCOUNT="<storage-account-name>"

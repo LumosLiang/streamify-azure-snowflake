@@ -10,7 +10,7 @@ CREATE STORAGE INTEGRATION IF NOT EXISTS STREAMIFY_AZURE_INT
   );
 
 -- Run this now. Use AZURE_CONSENT_URL and AZURE_MULTI_TENANT_APP_NAME to
--- complete the Azure consent and IAM steps described in snowflake_setup.md.
+-- complete the Azure consent and IAM steps described in README.md.
 DESC STORAGE INTEGRATION STREAMIFY_AZURE_INT;
 
 GRANT USAGE ON INTEGRATION STREAMIFY_AZURE_INT

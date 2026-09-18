@@ -1,6 +1,6 @@
 # Initialize Snowflake
 
-[中文](snowflake_setup.md) | English
+[中文](README.md) | English
 
 This stage creates the objects required for `ADLS2 → Snowflake staging → dbt`.
 
@@ -20,7 +20,7 @@ chmod 600 airflow/secrets/snowflake_rsa_key.p8
 grep -v '^-----' airflow/secrets/snowflake_rsa_key.pub | tr -d '\n'
 ```
 
-Open `airflow/snowflake_setup.sql` in Snowsight, replace the public-key placeholder, and run it. It creates a service user, role, X-Small warehouse, staging/prod schemas, and three staging tables. Run the final `ADD KEY PAIR` statement only once.
+Open `snowflake/setup.sql` in Snowsight, replace the public-key placeholder, and run it. It creates a service user, role, X-Small warehouse, staging/prod schemas, and three staging tables. Run the final `ADD KEY PAIR` statement only once.
 
 ## 2. Allow Snowflake to read ADLS2
 
@@ -30,7 +30,7 @@ Get the tenant ID. Read the storage account name from `storage_account_name` in 
 az account show --query tenantId -o tsv
 ```
 
-Replace the placeholders in `airflow/snowflake_storage_setup.sql`, then run through `DESC STORAGE INTEGRATION`. From its output:
+Replace the placeholders in `snowflake/storage_setup.sql`, then run through `DESC STORAGE INTEGRATION`. From its output:
 
 1. Open `AZURE_CONSENT_URL` and grant consent.
 2. In the Azure Storage Account **Access control (IAM)** page, grant **Storage Blob Data Reader** to the enterprise application named by `AZURE_MULTI_TENANT_APP_NAME`.
@@ -46,4 +46,4 @@ test -f airflow/.env || cp airflow/.env.example airflow/.env
 
 Set `SNOWFLAKE_ACCOUNT` and the private-key passphrase. The other defaults can remain unchanged. Never commit `airflow/.env` or the private key.
 
-Then rebuild the image using [Airflow setup](../setup/airflow.en.md) and verify the connection using [dbt setup](../setup/dbt.en.md).
+Then build the image using [Airflow setup](../setup/airflow.en.md) and verify the connection using [dbt setup](../setup/dbt.en.md).

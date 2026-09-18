@@ -1,6 +1,6 @@
 # Snowflake 初始化
 
-中文 | [English](snowflake_setup.en.md)
+中文 | [English](README.en.md)
 
 本阶段建立 `ADLS2 → Snowflake staging → dbt` 所需的对象。
 
@@ -20,7 +20,7 @@ chmod 600 airflow/secrets/snowflake_rsa_key.p8
 grep -v '^-----' airflow/secrets/snowflake_rsa_key.pub | tr -d '\n'
 ```
 
-在 Snowsight 中打开 `airflow/snowflake_setup.sql`，替换公钥占位符后执行。它创建专用 service user、role、X-Small warehouse、staging/prod schemas 和三个 staging 表。最后的 `ADD KEY PAIR` 只执行一次。
+在 Snowsight 中打开 `snowflake/setup.sql`，替换公钥占位符后执行。它创建专用 service user、role、X-Small warehouse、staging/prod schemas 和三个 staging 表。最后的 `ADD KEY PAIR` 只执行一次。
 
 ## 2. 允许 Snowflake 读取 ADLS2
 
@@ -30,7 +30,7 @@ grep -v '^-----' airflow/secrets/snowflake_rsa_key.pub | tr -d '\n'
 az account show --query tenantId -o tsv
 ```
 
-在 `airflow/snowflake_storage_setup.sql` 中替换对应占位符，然后先执行到 `DESC STORAGE INTEGRATION`。在结果中：
+在 `snowflake/storage_setup.sql` 中替换对应占位符，然后先执行到 `DESC STORAGE INTEGRATION`。在结果中：
 
 1. 打开 `AZURE_CONSENT_URL` 并同意授权。
 2. 在 Azure Storage Account 的 **Access control (IAM)** 中，把 **Storage Blob Data Reader** 角色授予 `AZURE_MULTI_TENANT_APP_NAME` 对应的企业应用。
@@ -46,4 +46,4 @@ test -f airflow/.env || cp airflow/.env.example airflow/.env
 
 填写 `SNOWFLAKE_ACCOUNT` 和私钥 passphrase。其余值保持默认即可。`airflow/.env` 和私钥均不能提交到 Git。
 
-接着按 [Airflow 安装](../setup/airflow.md) 重建镜像，再按 [dbt 配置](../setup/dbt.md) 验证连接。
+接着按 [Airflow 安装](../setup/airflow.md) 构建镜像，再按 [dbt 配置](../setup/dbt.md) 验证连接。

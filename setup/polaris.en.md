@@ -8,7 +8,7 @@ Polaris and its PostgreSQL metadata database run in Docker containers on the Spa
 
 ```bash
 ssh streamify-spark
-cd ~/streamify
+cd ~/streamify-azure-snowflake
 bash scripts/vm_setup.sh
 ```
 
@@ -17,7 +17,7 @@ If Docker was just installed, log out and reconnect before continuing.
 ## 2. Create the local configuration
 
 ```bash
-cd ~/streamify/polaris
+cd ~/streamify-azure-snowflake/polaris
 cp .env.example .env
 ```
 

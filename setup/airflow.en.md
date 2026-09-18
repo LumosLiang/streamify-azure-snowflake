@@ -17,14 +17,11 @@ cd airflow
 docker compose ps
 ```
 
-See [Initialize Snowflake](../airflow/snowflake_setup.en.md) for the one-time Snowflake and ADLS2 setup. This change adds the Snowflake provider, so an existing installation must rebuild the image; `airflow_startup.sh` does that.
+See [Initialize Snowflake](../snowflake/README.en.md) for the one-time Snowflake and ADLS2 setup. `airflow_startup.sh` builds the image and starts the services.
 
 Use [SSH port forwarding](ssh.en.md#4-port-forwarding) and open `http://localhost:8080`. The default username and password are both `airflow`.
 
 ## DAGs
 
 - `load_songs_dag`: run once manually to load the bundled `songs.csv` dbt seed into `STREAMIFY_STG`.
-- `dbt_test`: your DAG exercise; its goal is to compile the dbt project with `BashOperator`.
 - `streamify_dag`: hourly COPY of three event types from ADLS2, followed by dbt.
-
-There are now two exercise files: `dbt_test_dag.py` for DAG syntax and `auth_events.sql` for Snowflake COPY. Both contain TODO guidance and do not prevent you from reading the main DAG.

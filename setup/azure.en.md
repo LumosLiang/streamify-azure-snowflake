@@ -2,13 +2,12 @@
 
 [中文](azure.md) | English
 
-Start with an active Azure subscription. If using a Visual Studio monthly credit, make sure it is activated. The project defaults to Singapore and targets Snowflake on AWS.
+Start with an active Azure subscription. Terraform deploys compute and storage to Singapore by default; Snowflake runs on AWS.
 
 ## 1. Check the subscription
 
-1. Activate the Azure credit in [Visual Studio Benefits](https://my.visualstudio.com/benefits), if you have not already done so.
-2. Open [Azure Portal](https://portal.azure.com), go to **Subscriptions**, and select the credit subscription.
-3. Check that its status is **Enabled** and copy the **Subscription ID**.
+1. Open [Azure Portal](https://portal.azure.com), go to **Subscriptions**, and select the subscription for this deployment.
+2. Check that its status is **Enabled** and copy the **Subscription ID**.
 
 ## 2. Check deployment permissions
 
@@ -16,9 +15,9 @@ Open **Access control (IAM) → View my access** on the subscription.
 
 Terraform needs to create resources and assign storage permissions to VMs. **Owner** can do both. **Contributor** alone cannot assign roles; an administrator must grant the additional role-assignment permissions.
 
-Under **Quotas**, check that Singapore has at least 12 available regional vCPUs: 10 in the Dasv5 family and 2 in the Easv5 family.
+Under **Quotas**, check that the deployment region has at least 12 available vCPUs: 10 in the Dasv5 family and 2 in the Easv5 family.
 
-AzureRM attempts to register common Resource Providers, similar to enabling APIs in GCP. If a provider is not registered, check it under the subscription's **Resource providers** page.
+If Terraform reports an unregistered Resource Provider, check it under the subscription's **Resource providers** page.
 
 ## 3. Install Azure CLI on your Mac
 

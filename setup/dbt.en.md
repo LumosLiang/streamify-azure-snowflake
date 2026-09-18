@@ -4,7 +4,7 @@
 
 dbt is installed in the Airflow image. The `dev` target points to `STREAMIFY_STG`, and `prod` points to `STREAMIFY_PROD`.
 
-Complete [Initialize Snowflake](../airflow/snowflake_setup.en.md), then build and check:
+Complete [Initialize Snowflake](../snowflake/README.en.md), then build and check:
 
 ```bash
 cd ~/streamify-azure-snowflake
@@ -21,4 +21,4 @@ docker compose run --rm --entrypoint dbt airflow-worker compile \
 
 Before the first production DAG run, manually run `load_songs_dag` once in the Airflow UI. `streamify_dag` loads the `state_codes` seed itself and then runs `dbt run --target prod`.
 
-Your exercise is `dbt/models/core/dim_user_agents.sql`: build a user-agent dimension from `listen_events`. It is disabled so the main DAG is unaffected. After writing the SQL, remove `enabled=false` and run it separately with `dbt run --select dim_user_agents --target prod`. The next step is adding its `userAgentKey` to `fact_streams`.
+The core models use Snowflake staging `listen_events` and the songs and state-codes seeds to build dimensions, facts, and a wide view. `page_view_events` and `auth_events` are loaded but do not yet feed the core models.

@@ -2,10 +2,7 @@
 
 [English](spark.en.md)
 
-![spark](../images/spark.jpg)
-
-这里不是 Dataproc、EMR 或 HDInsight。Terraform 创建的是三台普通 Azure VM：一台
-Spark master 和两台 worker。Spark 使用 standalone 模式，Kafka 仍运行在独立的 Kafka VM
+Terraform 创建三台 Azure VM：一台 Spark master 和两台 worker。Spark 使用 standalone 模式，Kafka 运行在独立的 Kafka VM
 上，Spark 通过 Kafka VM 的私网地址访问 `9092`。
 
 Terraform 只创建基础设施，不会自动安装或启动 Spark。先完成 [Terraform 部署](terraform.md)、
@@ -57,7 +54,7 @@ Spark Web UI 默认监听 master 的 `8080`；通过 SSH 转发到本机 `8082` 
 在 master 上进入流处理目录并设置：
 
 ```bash
-cd ~/streamify/spark_streaming
+cd ~/streamify-azure-snowflake/spark_streaming
 export SPARK_MASTER_URL="spark://<spark-master-private-ip>:7077"
 export KAFKA_ADDRESS="<kafka-private-ip>"
 export AZURE_STORAGE_ACCOUNT="<storage-account-name>"

@@ -88,13 +88,13 @@ terraform apply
 
 ## 4. Default resources
 
-| Original GCP resource | Azure replacement |
+| Resource | Current configuration |
 | --- | --- |
 | Kafka VM | One D4as v5: 4 vCPUs, 16 GiB |
 | Airflow VM | One E2as v5: 2 vCPUs, 16 GiB |
-| Dataproc: one master and two workers | Three D2as v5 VMs: 2 vCPUs and 8 GiB each; install Spark separately |
-| GCS bucket | One ADLS Gen2 storage account and a `streamify` container |
-| BigQuery STG / PROD | Not created here; configure them later in the existing AWS Snowflake account |
+| Spark master and two workers | Three D2as v5 VMs: 2 vCPUs and 8 GiB each; install Spark separately |
+| Data lake | One ADLS Gen2 storage account and a `streamify` container |
+| Snowflake | Not created by Terraform; configure it in the existing AWS account using [Snowflake setup](../snowflake/README.en.md) |
 
 Each VM uses Ubuntu 24.04 and a 32 GiB Standard SSD OS disk.
 Networking includes a resource group, VNet, subnet, NSG, network interfaces, and public IPs.
@@ -116,7 +116,7 @@ The corresponding Snowflake external stage URL is:
 azure://<account-name>.blob.core.windows.net/streamify/
 ```
 
-The original GCP bucket-wide 30-day deletion rule is not carried over, to avoid deleting active checkpoints.
+This configuration does not clean up data automatically; checkpoints must remain available for stream recovery.
 
 <a id="runtime-identities"></a>
 
@@ -128,15 +128,13 @@ The original GCP bucket-wide 30-day deletion rule is not carried over, to avoid 
 | Inspect Blob data in the portal | Your Azure user, Storage Blob Data Reader | Created by Terraform |
 | Spark reads and writes ADLS | VM managed identity, Storage Blob Data Contributor | Created by Terraform |
 | Airflow reads ADLS | VM managed identity, Storage Blob Data Reader | Created by Terraform |
-| AWS Snowflake reads ADLS | An Azure service principal associated with Snowflake | Authorized later through a storage integration |
+| AWS Snowflake reads ADLS | An Azure service principal associated with Snowflake | Authorized using [Snowflake setup](../snowflake/README.en.md) |
 
 A managed identity is an application identity that Azure manages for the VM. There are no credentials to save manually. After Terraform creates the identity and permissions, Spark and other applications still need to be configured to use that identity.
 
 ## 5. State and later changes
 
-Azure state is stored locally in `azure.tfstate`, separate from the original GCP `terraform.tfstate`. Keep the state file so Terraform can track the resources it created.
-
-If this directory was previously initialized with the GCP backend, use `terraform init -reconfigure`. Do not migrate GCP state into the Azure configuration. Existing GCP resources still need their original configuration and state.
+Azure state is stored locally in `azure.tfstate`. Keep the state file so Terraform can track the resources it created.
 
 To change VM sizes later, edit `terraform.tfvars` or the defaults and run `terraform plan`. Review any downtime or resource replacement before running `apply`.
 

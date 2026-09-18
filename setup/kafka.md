@@ -2,8 +2,7 @@
 
 中文 | [English](kafka.en.md)
 
-Kafka 和 Eventsim 在同一台 VM 的独立容器中运行。Kafka 使用 Confluent Platform 7.9.9 的 KRaft 模式，不再使用 ZooKeeper，也没有新增持久卷。
-其他适配包括私网地址、Eventsim 堆内存和 Ubuntu 24.04 的安装步骤。
+Kafka 和 Eventsim 在同一台 VM 的独立容器中运行。Kafka 使用 Confluent Platform 7.9.9 的 KRaft 模式，不依赖 ZooKeeper。Kafka Compose 没有配置持久卷。
 
 ## 1. 准备项目
 
@@ -14,7 +13,6 @@ ssh streamify-kafka
 ```
 
 将包含当前修改的项目放到 VM。后续命令在 **VM 的项目根目录**执行。
-如果通过 Git 获取项目，先确认远端分支包含这些修改；本地未提交的文件不会自动同步。
 项目可以放在任意目录，启动脚本会根据自身位置找到 Eventsim。
 
 ## 2. 安装 Docker 和 Compose
@@ -23,7 +21,7 @@ ssh streamify-kafka
 bash scripts/vm_setup.sh
 ```
 
-脚本使用 Docker 官方 Ubuntu 软件源安装 Docker Engine 和 Compose 插件，不安装 Anaconda 或 GCP 工具。
+脚本使用 Docker 官方 Ubuntu 软件源安装 Docker Engine 和 Compose 插件。
 完成后执行 `exit`，重新 SSH 登录，让 Docker 用户组权限生效。返回项目根目录检查：
 
 ```bash

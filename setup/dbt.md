@@ -4,7 +4,7 @@
 
 dbt 安装在 Airflow 镜像中。`dev` target 指向 `STREAMIFY_STG`，`prod` target 指向 `STREAMIFY_PROD`。
 
-先完成 [Snowflake 初始化](../airflow/snowflake_setup.md)，然后构建并检查：
+先完成 [Snowflake 初始化](../snowflake/README.md)，然后构建并检查：
 
 ```bash
 cd ~/streamify-azure-snowflake
@@ -21,4 +21,4 @@ docker compose run --rm --entrypoint dbt airflow-worker compile \
 
 首次运行正式 DAG 前，在 Airflow UI 手动运行一次 `load_songs_dag`。`streamify_dag` 会自行加载 `state_codes` seed，然后执行 `dbt run --target prod`。
 
-练习文件是 `dbt/models/core/dim_user_agents.sql`：从 `listen_events` 构建 userAgent 维度。它暂时被禁用，不影响主 DAG；完成 SQL 后删除 `enabled=false`，用 `dbt run --select dim_user_agents --target prod` 单独运行。下一步再把它的 `userAgentKey` 接入 `fact_streams`。
+核心模型从 Snowflake staging 中的 `listen_events` 和歌曲、州代码 seed 构建维度表、事实表与宽表；`page_view_events` 和 `auth_events` 目前只入仓，不参与核心模型。

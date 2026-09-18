@@ -8,7 +8,7 @@ Polaris 和它的 PostgreSQL metadata database 运行在 Spark Master VM 的 Doc
 
 ```bash
 ssh streamify-spark
-cd ~/streamify
+cd ~/streamify-azure-snowflake
 bash scripts/vm_setup.sh
 ```
 
@@ -17,7 +17,7 @@ bash scripts/vm_setup.sh
 ## 2. 创建本地配置
 
 ```bash
-cd ~/streamify/polaris
+cd ~/streamify-azure-snowflake/polaris
 cp .env.example .env
 ```
 
@@ -48,4 +48,3 @@ docker compose down
 ```
 
 不要使用 `docker compose down -v`，它会删除 PostgreSQL volume 中的 Polaris metadata。
-

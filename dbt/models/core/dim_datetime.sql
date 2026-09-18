@@ -1,19 +1,23 @@
 {{ config(materialized = 'table') }}
 
-WITH date_series AS
-(
-SELECT
-  *
-FROM
-  UNNEST(GENERATE_TIMESTAMP_ARRAY('2018-10-01', '2023-01-01', INTERVAL 1 HOUR)) AS date
+WITH date_series AS (
+    SELECT
+        DATEADD(
+            hour,
+            ROW_NUMBER() OVER (ORDER BY SEQ4()) - 1,
+            '2018-10-01'::TIMESTAMP_NTZ
+        ) AS date
+    FROM TABLE(GENERATOR(ROWCOUNT => 100000))
 )
+
 SELECT
-    UNIX_SECONDS(date) AS dateKey,
+    DATEDIFF(second, '1970-01-01'::TIMESTAMP_NTZ, date) AS dateKey,
     date,
-    EXTRACT( DAYOFWEEK FROM date) AS dayOfWeek,
-    EXTRACT( DAY FROM date) AS dayOfMonth,
-    EXTRACT( WEEK FROM date) AS weekOfYear,
-    EXTRACT( MONTH FROM date) AS month,
-    EXTRACT( YEAR FROM date) AS year,
-    CASE WHEN EXTRACT( DAYOFWEEK FROM date) IN (6,7) THEN True ELSE False END AS weekendFlag
+    DAYOFWEEKISO(date) AS dayOfWeek,
+    DAY(date) AS dayOfMonth,
+    WEEKOFYEAR(date) AS weekOfYear,
+    MONTH(date) AS month,
+    YEAR(date) AS year,
+    DAYOFWEEKISO(date) IN (6, 7) AS weekendFlag
 FROM date_series
+WHERE date < DATEADD(day, 1, CURRENT_DATE)

@@ -78,6 +78,8 @@ x-airflow-common:
     SNOWFLAKE_ROLE: ${SNOWFLAKE_ROLE:-STREAMIFY_TRANSFORMER}
     SNOWFLAKE_DATABASE: ${SNOWFLAKE_DATABASE:-STREAMIFY}
     SNOWFLAKE_WAREHOUSE: ${SNOWFLAKE_WAREHOUSE:-STREAMIFY_TRANSFORM_WH}
+    AIRFLOW_CONN_SNOWFLAKE_DEFAULT: >-
+      {"conn_type":"snowflake","login":"${SNOWFLAKE_USER:-STREAMIFY_DBT}","password":"${SNOWFLAKE_PRIVATE_KEY_PASSPHRASE:-}","schema":"STREAMIFY_STG","extra":{"account":"${SNOWFLAKE_ACCOUNT:-}","database":"${SNOWFLAKE_DATABASE:-STREAMIFY}","warehouse":"${SNOWFLAKE_WAREHOUSE:-STREAMIFY_TRANSFORM_WH}","role":"${SNOWFLAKE_ROLE:-STREAMIFY_TRANSFORMER}","private_key_file":"${SNOWFLAKE_PRIVATE_KEY_PATH:-/opt/airflow/secrets/snowflake_rsa_key.p8}"}}
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs

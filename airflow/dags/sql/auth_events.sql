@@ -1,17 +1,12 @@
-INSERT {{ BIGQUERY_DATASET }}.{{ AUTH_EVENTS_TABLE }}
-SELECT
-    ts,
-    COALESCE(level, 'NA') AS level,
-    COALESCE(city, 'NA') AS city,
-    COALESCE(state, 'NA') AS state,
-    COALESCE(userAgent, 'NA') AS userAgent,
-    COALESCE(CAST(lon AS NUMERIC), 0.0) AS lon,
-    COALESCE(CAST(lat AS NUMERIC), 0.0) AS lat,
-    COALESCE(userId, 0) AS userId,
-    COALESCE(lastName, 'NA') AS lastName,
-    COALESCE(firstName, 'NA') AS firstName,
-    COALESCE(gender, 'NA') AS gender,
-    COALESCE(registration, 9999999999999) AS registration,
-    COALESCE(success, FALSE)
-FROM {{ BIGQUERY_DATASET }}.{{ AUTH_EVENTS_TABLE}}_{{ logical_date.strftime("%m%d%H") }} -- Creates a table name with month day and hour values appended to it
-                                                                                            -- like listen_events_032313 for 23-03-2022 13:00:00
+-- LEARNING EXERCISE / 学习练习
+-- Load the auth_events Parquet files from STREAMIFY_ADLS_STAGE into
+-- STREAMIFY.STREAMIFY_STG.AUTH_EVENTS.
+-- Refer to listen_events.sql and page_view_events.sql, then write the COPY INTO
+-- statement here. auth_events will not be loaded until this file is completed.
+
+COPY INTO STREAMIFY.STREAMIFY_STG.AUTH_EVENTS
+FROM @STREAMIFY.STREAMIFY_STG.STREAMIFY_ADLS_STAGE/auth_events/
+FILE_FORMAT = (FORMAT_NAME = STREAMIFY.STREAMIFY_STG.STREAMIFY_PARQUET_FORMAT)
+MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE
+PATTERN = '.*[.]parquet'
+ON_ERROR = 'ABORT_STATEMENT';

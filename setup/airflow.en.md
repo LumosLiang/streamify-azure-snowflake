@@ -1,52 +1,30 @@
-# Set Up Airflow on an Azure VM
+# Run Airflow on an Azure VM
 
 [中文](airflow.md) | English
 
-Airflow runs in Docker Compose on its own VM. This step only starts Airflow; it does not adapt or run the original DAGs.
+Airflow first loads Parquet files from ADLS2 into Snowflake staging tables, then invokes dbt to build the warehouse models.
 
-## 1. Prepare the VM
-
-Connect from your Mac and get the project:
+## Start
 
 ```bash
 ssh streamify-airflow
-git clone https://github.com/LumosLiang/streamify-azure-snowflake.git streamify
-cd streamify
-bash scripts/vm_setup.sh
-```
-
-Log out and reconnect so Docker group membership takes effect:
-
-```bash
-exit
-ssh streamify-airflow
-cd streamify
-```
-
-## 2. Create the local configuration
-
-```bash
-cp airflow/.env.example airflow/.env
+cd ~/streamify-azure-snowflake
+git pull
+test -f airflow/.env || cp airflow/.env.example airflow/.env
 sed -i "s/^AIRFLOW_UID=.*/AIRFLOW_UID=$(id -u)/" airflow/.env
-```
-
-See [Initialize Snowflake](../airflow/snowflake_setup.en.md) to create the user and key pair. Edit `airflow/.env` and set the account identifier and private-key passphrase. This file is ignored by Git and must not be committed.
-
-## 3. Start and verify
-
-```bash
 bash scripts/airflow_startup.sh
 cd airflow
 docker compose ps
 ```
 
-The startup script finds the project relative to its own location, so no symbolic link is needed when the repository is stored elsewhere.
+See [Initialize Snowflake](../airflow/snowflake_setup.en.md) for the one-time Snowflake and ADLS2 setup. This change adds the Snowflake provider, so an existing installation must rebuild the image; `airflow_startup.sh` does that.
 
 Use [SSH port forwarding](ssh.en.md#4-port-forwarding) and open `http://localhost:8080`. The default username and password are both `airflow`.
 
-```bash
-docker compose logs --follow
-docker compose down
-```
+## DAGs
 
-The original DAGs still target GCP and BigQuery. They are retained for reading, so DAG import errors are expected until a later adaptation step.
+- `load_songs_dag`: run once manually to load the bundled `songs.csv` dbt seed into `STREAMIFY_STG`.
+- `dbt_test`: your DAG exercise; its goal is to compile the dbt project with `BashOperator`.
+- `streamify_dag`: hourly COPY of three event types from ADLS2, followed by dbt.
+
+There are now two exercise files: `dbt_test_dag.py` for DAG syntax and `auth_events.sql` for Snowflake COPY. Both contain TODO guidance and do not prevent you from reading the main DAG.

@@ -2,38 +2,23 @@
 
 [中文](dbt.md) | English
 
-dbt is installed in the custom Airflow image. This step only establishes the Snowflake connection; it does not run or adapt the original models.
+dbt is installed in the Airflow image. The `dev` target points to `STREAMIFY_STG`, and `prod` points to `STREAMIFY_PROD`.
 
-## 1. Prepare the Snowflake settings
-
-From the project directory on the Airflow VM:
+Complete [Initialize Snowflake](../airflow/snowflake_setup.en.md), then build and check:
 
 ```bash
-test -f airflow/.env || cp airflow/.env.example airflow/.env
-```
-
-Complete [Initialize Snowflake](../airflow/snowflake_setup.en.md), then check these values:
-
-- `SNOWFLAKE_ACCOUNT`: the Snowflake account identifier, such as `organization-account`
-- `SNOWFLAKE_USER`: the `STREAMIFY_DBT` service user
-- `SNOWFLAKE_PRIVATE_KEY_PATH`: the private-key path inside the container; keep the example default
-- `SNOWFLAKE_PRIVATE_KEY_PASSPHRASE`: the passphrase chosen when generating the private key
-- `SNOWFLAKE_ROLE`: the role used by dbt
-- `SNOWFLAKE_DATABASE`: the target database
-- `SNOWFLAKE_WAREHOUSE`: the warehouse that runs SQL
-
-`dbt/profiles.yml` reads these environment variables. The dev and prod targets use the `STREAMIFY_STG` and `STREAMIFY_PROD` schemas.
-
-## 2. Build and check
-
-Build the image using the [Airflow setup](airflow.en.md), then run:
-
-```bash
-cd ~/streamify/airflow
-docker compose run --rm airflow-worker dbt --version
-docker compose run --rm airflow-worker dbt debug \
+cd ~/streamify-azure-snowflake
+bash scripts/airflow_startup.sh
+cd airflow
+docker compose run --rm --entrypoint dbt airflow-worker debug \
   --project-dir /opt/airflow/dbt \
   --profiles-dir /opt/airflow/dbt
+docker compose run --rm --entrypoint dbt airflow-worker compile \
+  --project-dir /opt/airflow/dbt \
+  --profiles-dir /opt/airflow/dbt \
+  --target prod
 ```
 
-`dbt debug` only checks configuration and connectivity. The original models still use BigQuery SQL, so do not run `dbt run` yet.
+Before the first production DAG run, manually run `load_songs_dag` once in the Airflow UI. `streamify_dag` loads the `state_codes` seed itself and then runs `dbt run --target prod`.
+
+Your exercise is `dbt/models/core/dim_user_agents.sql`: build a user-agent dimension from `listen_events`. It is disabled so the main DAG is unaffected. After writing the SQL, remove `enabled=false` and run it separately with `dbt run --select dim_user_agents --target prod`. The next step is adding its `userAgentKey` to `fact_streams`.

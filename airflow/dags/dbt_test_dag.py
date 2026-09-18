@@ -1,25 +1,26 @@
 from datetime import datetime
 
-from airflow import DAG
-from airflow.operators.bash import BashOperator
+from airflow.sdk import DAG
+from airflow.providers.standard.operators.bash import BashOperator
 
-default_args = {
-    'owner' : 'airflow'
-}
 
 with DAG(
-    dag_id = 'dbt_test',
-    default_args = default_args,
-    description = 'Test dbt',
-    schedule_interval="@once", #At the 5th minute of every hour
-    start_date=datetime(2022,3,20),
-    catchup=True,
-    tags=['streamify', 'dbt']
+    dag_id="dbt_test",
+    description="Compile the Streamify dbt project",
+    schedule=None,
+    start_date=datetime(2022, 3, 20),
+    catchup=False,
+    tags=["streamify", "dbt"],
 ) as dag:
+   
 
-    dbt_test_task = BashOperator(
-        task_id = "dbt_test",
-        bash_command = "cd /dbt && dbt deps && dbt compile --profiles-dir ."
+    dbt_compile = BashOperator(
+        task_id="dbt_compile",
+        bash_command=(
+            f"cd /opt/airflow/dbt && dbt deps && "
+            "dbt compile --profiles-dir . --target prod"
+        ),
     )
 
-    dbt_test_task
+    dbt_compile
+

@@ -1,5 +1,0 @@
-# Local utilities. Versions verified 2026-09-07.
-# Airflow/dbt runtime upgrades are deferred pending approval.
-kafka-python==3.0.11
-azure-identity==1.25.3
-azure-storage-blob==12.30.1

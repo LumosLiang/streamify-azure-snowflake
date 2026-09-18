@@ -2,63 +2,48 @@
 
 [中文](snowflake_setup.md) | English
 
-This step creates only the user, role, warehouse, database, and schemas required for the dbt connection. dbt uses a dedicated `SERVICE` user with an RSA key pair instead of a password.
+This stage creates the objects required for `ADLS2 → Snowflake staging → dbt`.
 
-## 1. Generate the key pair on the Airflow VM
+## 1. Create the Snowflake identity and base objects
+
+Generate an encrypted private key on the Airflow VM:
 
 ```bash
-cd ~/streamify
+cd ~/streamify-azure-snowflake
 mkdir -p airflow/secrets
 chmod 700 airflow/secrets
-
 openssl genrsa 2048 | openssl pkcs8 -topk8 -v2 aes-256-cbc \
   -inform PEM -out airflow/secrets/snowflake_rsa_key.p8
-
 openssl rsa -in airflow/secrets/snowflake_rsa_key.p8 -pubout \
   -out airflow/secrets/snowflake_rsa_key.pub
-
 chmod 600 airflow/secrets/snowflake_rsa_key.p8
-```
-
-The first command prompts for a private-key passphrase. Neither the private key nor its passphrase belongs in Git.
-
-Print the public key as the single line required by Snowflake SQL:
-
-```bash
 grep -v '^-----' airflow/secrets/snowflake_rsa_key.pub | tr -d '\n'
 ```
 
-## 2. Initialize Snowflake
+Open `airflow/snowflake_setup.sql` in Snowsight, replace the public-key placeholder, and run it. It creates a service user, role, X-Small warehouse, staging/prod schemas, and three staging tables. Run the final `ADD KEY PAIR` statement only once.
 
-Open a Snowsight worksheet with an administrator role that can create account objects. Open `airflow/snowflake_setup.sql`, replace `<snowflake-public-key-body>` with the output above, and run the file.
+## 2. Allow Snowflake to read ADLS2
 
-It creates:
+Get the tenant ID. Read the storage account name from `storage_account_name` in `terraform/terraform.tfvars`:
 
-- user: `STREAMIFY_DBT`
-- role: `STREAMIFY_TRANSFORMER`
-- warehouse: `STREAMIFY_TRANSFORM_WH`, X-Small, auto-suspended after 60 idle seconds
-- database: `STREAMIFY`
-- schemas: `STREAMIFY_STG` and `STREAMIFY_PROD`
+```bash
+az account show --query tenantId -o tsv
+```
 
-Run the final `ADD KEY PAIR` statement only once. Skip it when rerunning the rest of the file.
+Replace the placeholders in `airflow/snowflake_storage_setup.sql`, then run through `DESC STORAGE INTEGRATION`. From its output:
 
-## 3. Configure the Airflow VM
+1. Open `AZURE_CONSENT_URL` and grant consent.
+2. In the Azure Storage Account **Access control (IAM)** page, grant **Storage Blob Data Reader** to the enterprise application named by `AZURE_MULTI_TENANT_APP_NAME`.
+3. Return to Snowsight and run the rest of the file. The final `LIST` should show the Parquet files.
+
+The URL uses `azure://<account>.blob.core.windows.net/streamify/`; this is also the correct form for ADLS Gen2.
+
+## 3. Configure Airflow
 
 ```bash
 test -f airflow/.env || cp airflow/.env.example airflow/.env
 ```
 
-`airflow/.env` is ignored by Git, so an existing file is not updated by `git pull`. Open it, remove the old `SNOWFLAKE_PASSWORD`, and make sure it contains:
+Set `SNOWFLAKE_ACCOUNT` and the private-key passphrase. The other defaults can remain unchanged. Never commit `airflow/.env` or the private key.
 
-```dotenv
-SNOWFLAKE_USER=STREAMIFY_DBT
-SNOWFLAKE_PRIVATE_KEY_PATH=/opt/airflow/secrets/snowflake_rsa_key.p8
-SNOWFLAKE_PRIVATE_KEY_PASSPHRASE=<passphrase-entered-while-generating-the-key>
-SNOWFLAKE_ROLE=STREAMIFY_TRANSFORMER
-SNOWFLAKE_DATABASE=STREAMIFY
-SNOWFLAKE_WAREHOUSE=STREAMIFY_TRANSFORM_WH
-```
-
-Also set `SNOWFLAKE_ACCOUNT`. `SNOWFLAKE_PRIVATE_KEY_PASSPHRASE` is the passphrase you chose when running `openssl pkcs8`.
-
-Build the image using the [Airflow setup](../setup/airflow.en.md), then run `dbt debug` using the [dbt setup](../setup/dbt.en.md).
+Then rebuild the image using [Airflow setup](../setup/airflow.en.md) and verify the connection using [dbt setup](../setup/dbt.en.md).

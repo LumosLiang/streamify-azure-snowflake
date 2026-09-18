@@ -2,63 +2,48 @@
 
 中文 | [English](snowflake_setup.en.md)
 
-本阶段只创建 dbt 连接所需的 user、role、warehouse、database 和 schemas。dbt 使用专用的 `SERVICE` user 和 RSA key pair，不使用密码。
+本阶段建立 `ADLS2 → Snowflake staging → dbt` 所需的对象。
 
-## 1. 在 Airflow VM 生成密钥
+## 1. 创建 Snowflake 身份和基础对象
+
+在 Airflow VM 生成加密私钥：
 
 ```bash
-cd ~/streamify
+cd ~/streamify-azure-snowflake
 mkdir -p airflow/secrets
 chmod 700 airflow/secrets
-
 openssl genrsa 2048 | openssl pkcs8 -topk8 -v2 aes-256-cbc \
   -inform PEM -out airflow/secrets/snowflake_rsa_key.p8
-
 openssl rsa -in airflow/secrets/snowflake_rsa_key.p8 -pubout \
   -out airflow/secrets/snowflake_rsa_key.pub
-
 chmod 600 airflow/secrets/snowflake_rsa_key.p8
-```
-
-第一条命令会要求设置 private-key passphrase。私钥和 passphrase 都不能提交到 Git。
-
-复制 Snowflake SQL 需要的单行公钥内容：
-
-```bash
 grep -v '^-----' airflow/secrets/snowflake_rsa_key.pub | tr -d '\n'
 ```
 
-## 2. 初始化 Snowflake
+在 Snowsight 中打开 `airflow/snowflake_setup.sql`，替换公钥占位符后执行。它创建专用 service user、role、X-Small warehouse、staging/prod schemas 和三个 staging 表。最后的 `ADD KEY PAIR` 只执行一次。
 
-打开 Snowsight worksheet，使用有权创建 account objects 的管理员角色。打开 `airflow/snowflake_setup.sql`，把 `<snowflake-public-key-body>` 替换成上一步输出，然后执行整个文件。
+## 2. 允许 Snowflake 读取 ADLS2
 
-它创建：
+取得 tenant ID；storage account name 可在 `terraform/terraform.tfvars` 的 `storage_account_name` 中查看：
 
-- user：`STREAMIFY_DBT`
-- role：`STREAMIFY_TRANSFORMER`
-- warehouse：`STREAMIFY_TRANSFORM_WH`，X-Small，空闲 60 秒自动暂停
-- database：`STREAMIFY`
-- schemas：`STREAMIFY_STG` 和 `STREAMIFY_PROD`
+```bash
+az account show --query tenantId -o tsv
+```
 
-脚本最后的 `ADD KEY PAIR` 只需执行一次；重复执行整个文件时跳过最后一条语句。
+在 `airflow/snowflake_storage_setup.sql` 中替换对应占位符，然后先执行到 `DESC STORAGE INTEGRATION`。在结果中：
 
-## 3. 配置 Airflow VM
+1. 打开 `AZURE_CONSENT_URL` 并同意授权。
+2. 在 Azure Storage Account 的 **Access control (IAM)** 中，把 **Storage Blob Data Reader** 角色授予 `AZURE_MULTI_TENANT_APP_NAME` 对应的企业应用。
+3. 回到 Snowsight，执行文件剩余部分。最后的 `LIST` 能看到 Parquet 文件即为成功。
+
+这里使用的地址格式是 `azure://<account>.blob.core.windows.net/streamify/`；ADLS Gen2 也使用这个格式。
+
+## 3. 配置 Airflow
 
 ```bash
 test -f airflow/.env || cp airflow/.env.example airflow/.env
 ```
 
-`airflow/.env` 被 Git 忽略，因此已有文件不会随 `git pull` 更新。打开它，删除旧的 `SNOWFLAKE_PASSWORD`，并确认包含：
+填写 `SNOWFLAKE_ACCOUNT` 和私钥 passphrase。其余值保持默认即可。`airflow/.env` 和私钥均不能提交到 Git。
 
-```dotenv
-SNOWFLAKE_USER=STREAMIFY_DBT
-SNOWFLAKE_PRIVATE_KEY_PATH=/opt/airflow/secrets/snowflake_rsa_key.p8
-SNOWFLAKE_PRIVATE_KEY_PASSPHRASE=<生成私钥时输入的口令>
-SNOWFLAKE_ROLE=STREAMIFY_TRANSFORMER
-SNOWFLAKE_DATABASE=STREAMIFY
-SNOWFLAKE_WAREHOUSE=STREAMIFY_TRANSFORM_WH
-```
-
-另外填写 `SNOWFLAKE_ACCOUNT`。`SNOWFLAKE_PRIVATE_KEY_PASSPHRASE` 是运行 `openssl pkcs8` 时由你设置的口令。
-
-按照 [Airflow setup](../setup/airflow.md) 构建镜像，再按照 [dbt setup](../setup/dbt.md) 执行 `dbt debug`。
+接着按 [Airflow 安装](../setup/airflow.md) 重建镜像，再按 [dbt 配置](../setup/dbt.md) 验证连接。

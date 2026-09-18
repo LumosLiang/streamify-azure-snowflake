@@ -1,1 +1,2 @@
 dbt-snowflake==1.11.6
+apache-airflow-providers-snowflake==6.16.1

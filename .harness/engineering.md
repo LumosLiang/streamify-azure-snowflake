@@ -97,6 +97,9 @@ environment variable or canonical file can remain the source.
 - Write natural, concise prose organized from architecture to operation.
 - Explain why a setting exists when that prevents a likely misuse; omit chat
   history and one-off questions.
+- Keep general credential-handling rules in `AGENTS.md`. Setup guides should
+  state the required keys and where the process consumes them, without repeating
+  generic warnings about committing `.env` files or command output.
 - Put each fact in one canonical guide and link to it elsewhere.
 - Commands must state where they run when Mac, Kafka VM, Airflow VM, and Spark VM
   could be confused.

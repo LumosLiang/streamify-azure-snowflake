@@ -27,7 +27,7 @@ cp .env.example .env
 openssl rand -hex 24
 ```
 
-`.env` 已被 Git 忽略，不要提交。`POLARIS_CLIENT_ID` 和 `POLARIS_CLIENT_SECRET` 是初始 root principal 的凭据，需要保存。
+`POLARIS_CLIENT_ID` 和 `POLARIS_CLIENT_SECRET` 是初始 root principal 的凭据。
 
 ## 3. 配置 ADLS 访问身份
 
@@ -46,7 +46,15 @@ az ad sp create-for-rbac --name streamify-polaris-storage \
   --scopes "<storage-account-resource-id>"
 ```
 
-将输出中的 `tenant`、`appId`、`password` 分别填入 Spark Master VM 上 `polaris/.env` 的 `AZURE_TENANT_ID`、`AZURE_CLIENT_ID`、`AZURE_CLIENT_SECRET`。不要把输出或 `.env` 提交到 Git。Polaris 使用这组凭据获取存储访问权限，之后才能为表客户端签发短期访问凭据。
+`.env.example` 已包含下面三项；如果 Spark Master 上的 `.env` 是之前创建的，在文件末尾补上它们：
+
+```bash
+AZURE_TENANT_ID=<tenant>
+AZURE_CLIENT_ID=<appId>
+AZURE_CLIENT_SECRET=<password>
+```
+
+它们分别来自命令输出的 `tenant`、`appId`、`password`。Docker Compose 会把这些值传给 Polaris；后续创建 Azure catalog 时，Polaris 通过 Azure SDK 的 `DefaultAzureCredential` 使用这组 service principal 凭据访问 ADLS，并向表客户端签发短期 SAS token。
 
 ## 4. 启动并检查服务
 
@@ -60,7 +68,39 @@ curl http://localhost:8182/q/health
 `bootstrap` 首次创建 `POLARIS` realm 后正常退出；PostgreSQL 和 Polaris 会继续运行。API 使用端口 `8181`，管理和健康检查使用 `8182`。
 健康检查只证明服务已启动；ADLS 访问要在创建 catalog 和表后验证。
 
-以后查看和停止服务：
+## 5. 创建 Azure catalog
+
+在 Spark Master 的 `polaris/` 目录运行：
+
+```bash
+bash create_catalog.sh \
+  <storage-account-name> \
+  <container-name> \
+  <catalog-name> \
+  <base-path>
+```
+
+例如，当前独立 Iceberg container 的命名可以是：
+
+```bash
+bash create_catalog.sh \
+  <storage-account-name> \
+  streamify-iceberg \
+  streamify_iceberg \
+  lake
+```
+
+脚本使用 `.env` 中的 Polaris root principal 和 Azure service principal。四个参数分别对应 Azure Storage Account、Azure container、Polaris catalog 名和 container 内的表根路径。container 和 catalog 名没有绑定关系；`lake` 也可以替换为 `warehouse` 或 `lake/raw`。
+
+上例的默认表路径是：
+
+```text
+abfss://streamify-iceberg@<storage-account-name>.dfs.core.windows.net/lake/
+```
+
+这一步不创建 namespace 或 Iceberg 表。若 catalog 已存在，脚本会退出，不会覆盖现有配置。
+
+## 6. 查看和停止服务
 
 ```bash
 docker compose logs --follow polaris

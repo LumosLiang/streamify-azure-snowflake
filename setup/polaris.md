@@ -2,7 +2,7 @@
 
 中文 | [English](polaris.en.md)
 
-Polaris 和它的 PostgreSQL metadata database 运行在 Spark Master VM 的 Docker 容器中。本阶段配置 Polaris 访问 ADLS Gen2；尚不创建 Iceberg catalog 或表。
+Polaris 和它的 PostgreSQL metadata database 运行在 Spark Master VM 的 Docker 容器中。本指南完成 Polaris 的 ADLS Gen2 访问、Azure catalog 和 Spark client 身份；Iceberg 表留到下一步创建。
 
 ## 1. 准备 VM
 
@@ -100,7 +100,32 @@ abfss://streamify-iceberg@<storage-account-name>.dfs.core.windows.net/lake/
 
 这一步不创建 namespace 或 Iceberg 表。若 catalog 已存在，脚本会退出，不会覆盖现有配置。
 
-## 6. 查看和停止服务
+## 6. 创建 Spark principal
+
+Spark 不使用 Polaris root principal。它需要自己的 principal、principal role 和 catalog role；脚本把三者关联，并为该 catalog 授予 `CATALOG_MANAGE_CONTENT`，即建表、读取和写入权限。
+
+先在 Spark Master 安装 Polaris CLI：
+
+```bash
+sudo apt-get update
+sudo apt-get install -y pipx
+pipx install apache-polaris
+"$HOME/.local/bin/polaris" --version
+```
+
+然后在 `polaris/` 目录运行：
+
+```bash
+bash create_spark_principal.sh \
+  <catalog-name> \
+  <principal-name> \
+  <principal-role-name> \
+  <catalog-role-name>
+```
+
+四个名字分别表达 catalog、Spark 身份、身份角色和 catalog 角色。脚本先确认 catalog 存在，并拒绝覆盖同名 principal 或角色。成功时会打印 Spark 下一步需要的 `clientId` 和 `clientSecret`；此时尚未改 Spark 配置或创建表。
+
+## 7. 查看和停止服务
 
 ```bash
 docker compose logs --follow polaris

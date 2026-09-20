@@ -2,7 +2,7 @@
 
 [中文](polaris.md) | English
 
-Polaris and its PostgreSQL metadata database run in Docker containers on the Spark Master VM. This step configures Polaris access to ADLS Gen2; it does not create an Iceberg catalog or table yet.
+Polaris and its PostgreSQL metadata database run in Docker containers on the Spark Master VM. This guide configures Polaris access to ADLS Gen2, an Azure catalog, and a Spark client identity; creating an Iceberg table is the next step.
 
 ## 1. Prepare the VM
 
@@ -100,7 +100,32 @@ abfss://streamify-iceberg@<storage-account-name>.dfs.core.windows.net/lake/
 
 It does not create a namespace or Iceberg table. If the catalog already exists, the script exits without overwriting its configuration.
 
-## 6. Inspect or stop the services
+## 6. Create the Spark principal
+
+Spark does not use the Polaris root principal. It needs its own principal, principal role, and catalog role. The script connects them and grants `CATALOG_MANAGE_CONTENT` on this catalog, which permits creating, reading, and writing tables.
+
+Install the Polaris CLI on the Spark Master first:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y pipx
+pipx install apache-polaris
+"$HOME/.local/bin/polaris" --version
+```
+
+Then run this in the `polaris/` directory:
+
+```bash
+bash create_spark_principal.sh \
+  <catalog-name> \
+  <principal-name> \
+  <principal-role-name> \
+  <catalog-role-name>
+```
+
+The four names identify the catalog, Spark identity, identity role, and catalog role. The script first checks that the catalog exists and refuses to overwrite a principal or role with the same name. On success, it prints the `clientId` and `clientSecret` needed in the next Spark step; it does not change Spark configuration or create a table.
+
+## 7. Inspect or stop the services
 
 ```bash
 docker compose logs --follow polaris

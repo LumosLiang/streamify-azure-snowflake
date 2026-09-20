@@ -93,7 +93,7 @@ terraform apply
 | Kafka VM | 1 台 D4as v5：4 核、16 GiB |
 | Airflow VM | 1 台 E2as v5：2 核、16 GiB |
 | Spark master + 两个 worker | 3 台 D2as v5：每台 2 核、8 GiB，Spark 另行安装 |
-| 数据湖 | 1 个 ADLS Gen2 Storage Account + `streamify` 容器 |
+| 数据湖 | 1 个 ADLS Gen2 Storage Account + `streamify`、`streamify-iceberg` 两个容器 |
 | Snowflake | Terraform 不创建；在现有 AWS 账号中按 [Snowflake 初始化](../snowflake/README.md) 配置 |
 
 每台 VM 使用 Ubuntu 24.04 和 32 GiB Standard SSD 系统盘。
@@ -103,12 +103,14 @@ SSH 只允许 `admin_source_cidr` 指定的地址，VM 之间用私网 IP 通信
 Terraform 只创建基础设施，不安装 Docker 或启动应用，也没有自动关机。
 部署完成后，按 [SSH 配置](ssh.md) 连接 VM，再按 [Kafka 与 Eventsim 部署](kafka.md) 安装服务。
 
-数据和 checkpoint 使用同一个容器，后续路径为：
+当前事件数据和 checkpoint 仍使用 `streamify` 容器，路径为：
 
 ```text
 abfss://streamify@<account-name>.dfs.core.windows.net/<event-type>/
 abfss://streamify@<account-name>.dfs.core.windows.net/checkpoint/<event-type>/
 ```
+
+`streamify-iceberg` 是独立的空容器，留给后续 Iceberg 表使用；创建它不会改变现有写入路径。
 
 Snowflake 外部 Stage 对应的地址为：
 
@@ -125,9 +127,10 @@ azure://<account-name>.blob.core.windows.net/streamify/
 | 用途 | 身份与权限 | 配置位置 |
 | --- | --- | --- |
 | 在 Mac 上部署资源 | 你的 Azure 用户及部署权限 | Azure CLI 登录、订阅 IAM |
-| 在 Portal 查看 Blob 数据 | 你的 Azure 用户，Storage Blob Data Reader | Terraform 创建 |
-| Spark 读写 ADLS | VM Managed Identity，Storage Blob Data Contributor | Terraform 创建 |
-| Airflow 读取 ADLS | VM Managed Identity，Storage Blob Data Reader | Terraform 创建 |
+| 在 Portal 查看两个容器的数据 | 你的 Azure 用户，Storage Blob Data Reader，账号级作用域 | Terraform 创建 |
+| Spark 读写现有 `streamify` 容器 | VM Managed Identity，Storage Blob Data Contributor | Terraform 创建 |
+| Airflow 读取现有 `streamify` 容器 | VM Managed Identity，Storage Blob Data Reader | Terraform 创建 |
+| Polaris 访问新容器 | 独立 Azure Service Principal，Storage Blob Data Contributor | 按 [Polaris 配置](polaris.md) 手动设置 |
 | AWS Snowflake 读取 ADLS | Snowflake 对应的 Azure Service Principal | 按 [Snowflake 初始化](../snowflake/README.md) 授权 |
 
 Managed Identity 是 Azure 为 VM 管理的程序身份，不需要手动保存凭据。Terraform 创建身份和权限后，Spark 等程序仍需配置为使用这个身份访问存储。

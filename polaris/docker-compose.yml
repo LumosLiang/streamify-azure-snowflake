@@ -39,6 +39,9 @@ services:
       <<: *polaris-database
       POLARIS_REALM_CONTEXT_REALMS: POLARIS
       JAVA_OPTS_APPEND: -Xms512m -Xmx1536m
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-}
+      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
     ports:
       - "8181:8181"
       - "8182:8182"

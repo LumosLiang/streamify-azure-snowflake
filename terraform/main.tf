@@ -126,7 +126,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
   depends_on = [azurerm_subnet_network_security_group_association.main]
 }
 
-# Replaces the original GCS bucket. HNS enables ADLS Gen2 (abfss://).
+# ADLS Gen2 (abfss://).
 resource "azurerm_storage_account" "lake" {
   name                            = var.storage_account_name
   resource_group_name             = azurerm_resource_group.main.name
@@ -148,6 +148,13 @@ resource "azurerm_storage_container" "lake" {
   container_access_type = "private"
 }
 
+# Keep Iceberg tables separate from the existing event files and checkpoints.
+resource "azurerm_storage_container" "iceberg" {
+  name                  = "streamify-iceberg"
+  storage_account_id    = azurerm_storage_account.lake.id
+  container_access_type = "private"
+}
+
 # Runtime identities: no downloaded service-account key is needed.
 resource "azurerm_role_assignment" "spark_storage" {
   for_each             = toset(["spark-master", "spark-worker-1", "spark-worker-2"])
@@ -163,6 +170,7 @@ resource "azurerm_role_assignment" "airflow_storage" {
 }
 
 resource "azurerm_role_assignment" "admin_storage_reader" {
+  # Account scope covers both streamify and streamify-iceberg.
   scope                = azurerm_storage_account.lake.id
   role_definition_name = "Storage Blob Data Reader"
   principal_id         = var.admin_object_id

@@ -93,7 +93,7 @@ terraform apply
 | Kafka VM | One D4as v5: 4 vCPUs, 16 GiB |
 | Airflow VM | One E2as v5: 2 vCPUs, 16 GiB |
 | Spark master and two workers | Three D2as v5 VMs: 2 vCPUs and 8 GiB each; install Spark separately |
-| Data lake | One ADLS Gen2 storage account and a `streamify` container |
+| Data lake | One ADLS Gen2 storage account with `streamify` and `streamify-iceberg` containers |
 | Snowflake | Not created by Terraform; configure it in the existing AWS account using [Snowflake setup](../snowflake/README.en.md) |
 
 Each VM uses Ubuntu 24.04 and a 32 GiB Standard SSD OS disk.
@@ -103,12 +103,14 @@ SSH is restricted to `admin_source_cidr`. VMs communicate through private IPs.
 Terraform creates the infrastructure only. It does not install Docker, start applications, or schedule shutdowns.
 After deployment, follow the [SSH guide](ssh.en.md), then [deploy Kafka and Eventsim](kafka.en.md).
 
-Data and checkpoints share one container. The paths for the later pipeline setup are:
+Current event data and checkpoints remain in the `streamify` container:
 
 ```text
 abfss://streamify@<account-name>.dfs.core.windows.net/<event-type>/
 abfss://streamify@<account-name>.dfs.core.windows.net/checkpoint/<event-type>/
 ```
+
+`streamify-iceberg` is a separate empty container reserved for future Iceberg tables. Creating it does not change the existing write path.
 
 The corresponding Snowflake external stage URL is:
 
@@ -125,9 +127,10 @@ This configuration does not clean up data automatically; checkpoints must remain
 | Purpose | Identity and permissions | Where it is configured |
 | --- | --- | --- |
 | Deploy resources from your Mac | Your Azure user and deployment permissions | Azure CLI login and subscription IAM |
-| Inspect Blob data in the portal | Your Azure user, Storage Blob Data Reader | Created by Terraform |
-| Spark reads and writes ADLS | VM managed identity, Storage Blob Data Contributor | Created by Terraform |
-| Airflow reads ADLS | VM managed identity, Storage Blob Data Reader | Created by Terraform |
+| Inspect data in both containers in the portal | Your Azure user, Storage Blob Data Reader at account scope | Created by Terraform |
+| Spark reads and writes the existing `streamify` container | VM managed identity, Storage Blob Data Contributor | Created by Terraform |
+| Airflow reads the existing `streamify` container | VM managed identity, Storage Blob Data Reader | Created by Terraform |
+| Polaris accesses the new container | Separate Azure service principal, Storage Blob Data Contributor | Set up manually using the [Polaris guide](polaris.en.md) |
 | AWS Snowflake reads ADLS | An Azure service principal associated with Snowflake | Authorized using [Snowflake setup](../snowflake/README.en.md) |
 
 A managed identity is an application identity that Azure manages for the VM. There are no credentials to save manually. After Terraform creates the identity and permissions, Spark and other applications still need to be configured to use that identity.

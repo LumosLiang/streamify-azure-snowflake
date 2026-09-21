@@ -1,6 +1,6 @@
 # Run the script using the following command
 # spark-submit \
-#   --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.2.0,org.apache.spark:spark-hadoop-cloud_2.13:4.2.0 \
+#   --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.3,org.apache.spark:spark-hadoop-cloud_2.13:4.1.3 \
 # stream_all_events.py
 
 import os

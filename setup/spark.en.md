@@ -15,7 +15,7 @@ ssh streamify-spark
 bash scripts/spark_setup.sh
 ```
 
-The script installs Java 17 and Spark 4.2.0 and creates `~/.spark_env`. All three VMs must use the same versions.
+The script installs Java 17 and Spark 4.1.3 and creates `~/.spark_env`. All three VMs must use the same versions.
 
 ## 2. Start the master and workers
 
@@ -67,7 +67,7 @@ Terraform grants the managed identities of all three Spark VMs the `Storage Blob
 ## 4. Validate the cluster and Kafka
 
 Check the versions separately on all three VMs. The Java major version should be `17` and the
-Spark version should be `4.2.0` on every node:
+Spark version should be `4.1.3` on every node:
 
 ```bash
 java -version
@@ -93,7 +93,7 @@ Run the Kafka smoke test to confirm that Spark can load the connector and access
 ```bash
 spark-submit \
   --master "${SPARK_MASTER_URL}" \
-  --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.2.0 \
+  --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.3 \
   validate_kafka.py
 ```
 
@@ -106,7 +106,7 @@ Run this only on the master:
 ```bash
 spark-submit \
   --master "${SPARK_MASTER_URL}" \
-  --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.2.0,org.apache.spark:spark-hadoop-cloud_2.13:4.2.0 \
+  --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.3,org.apache.spark:spark-hadoop-cloud_2.13:4.1.3 \
   stream_all_events.py
 ```
 

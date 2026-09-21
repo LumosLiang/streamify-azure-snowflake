@@ -2,7 +2,7 @@
 
 [中文](polaris.md) | English
 
-Polaris and its PostgreSQL metadata database run in Docker containers on the Spark Master VM. This guide configures Polaris access to ADLS Gen2, an Azure catalog, and a Spark client identity; creating an Iceberg table is the next step.
+Polaris and its PostgreSQL metadata database run in Docker containers on the Spark Master VM. This guide configures Polaris access to ADLS Gen2, an Azure catalog, a Spark client identity, and one isolated Iceberg validation table. It does not change the current Parquet streaming path.
 
 ## 1. Prepare the VM
 
@@ -123,9 +123,51 @@ bash create_spark_principal.sh \
   <catalog-role-name>
 ```
 
-The four names identify the catalog, Spark identity, identity role, and catalog role. The script first checks that the catalog exists and refuses to overwrite a principal or role with the same name. On success, it prints the `clientId` and `clientSecret` needed in the next Spark step; it does not change Spark configuration or create a table.
+The four names identify the catalog, Spark identity, identity role, and catalog role. The script first checks that the catalog exists and refuses to overwrite a principal or role with the same name. On success, it prints the `clientId` and `clientSecret` needed in the next step.
 
-## 7. Inspect or stop the services
+## 7. Validate the first Iceberg table with Spark SQL
+
+In the `polaris/` directory on the Spark Master, load the Spark environment and enter the credentials created for the Spark principal in the previous step:
+
+```bash
+source "$HOME/.spark_env"
+read -r -p 'Spark principal client ID: ' POLARIS_SPARK_CLIENT_ID
+read -r -s -p 'Spark principal client secret: ' POLARIS_SPARK_CLIENT_SECRET
+printf '\n'
+```
+
+Then start an interactive Spark SQL session yourself. Replace `<catalog-name>` with the existing Azure catalog in Polaris:
+
+```bash
+"$SPARK_HOME/bin/spark-sql" \
+  --master "$SPARK_MASTER_URL" \
+  --packages org.apache.iceberg:iceberg-spark-runtime-4.1_2.13:1.11.0,org.apache.iceberg:iceberg-azure-bundle:1.11.0 \
+  --conf spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions \
+  --conf spark.sql.catalog.polaris=org.apache.iceberg.spark.SparkCatalog \
+  --conf spark.sql.catalog.polaris.type=rest \
+  --conf spark.sql.catalog.polaris.uri=http://127.0.0.1:8181/api/catalog \
+  --conf spark.sql.catalog.polaris.oauth2-server-uri=http://127.0.0.1:8181/api/catalog/v1/oauth/tokens \
+  --conf spark.sql.catalog.polaris.token-refresh-enabled=false \
+  --conf spark.sql.catalog.polaris.warehouse=<catalog-name> \
+  --conf spark.sql.catalog.polaris.scope=PRINCIPAL_ROLE:ALL \
+  --conf spark.sql.catalog.polaris.credential="${POLARIS_SPARK_CLIENT_ID}:${POLARIS_SPARK_CLIENT_SECRET}" \
+  --conf spark.sql.catalog.polaris.header.X-Iceberg-Access-Delegation=vended-credentials \
+  --conf spark.sql.catalog.polaris.io-impl=org.apache.iceberg.azure.adlsv2.ADLSFileIO
+```
+
+`polaris` is the local catalog alias for this Spark session; `<catalog-name>` is the existing Azure catalog in Polaris. `--packages` adds the Iceberg 1.11 runtime for Spark 4.1 and the Azure bundle. The remaining `spark.sql.catalog.polaris.*` parameters define the REST catalog, OAuth authentication, catalog selection, and ADLS FileIO. When creating and loading tables, Polaris vends short-lived ADLS SAS tokens to Spark, so Spark needs no static Azure storage credentials.
+
+At the `spark-sql` prompt, open `validate_iceberg.sql` and run its statements one at a time. They create `polaris.validation`, create the `spark_connectivity` table, write one validation row only when it is absent, and query the result.
+
+On success, the query includes:
+
+```text
+1  polaris-iceberg
+```
+
+This step creates test data only in the dedicated Iceberg container. It does not read from or replace the existing Kafka, Spark Streaming, or Parquet output.
+
+## 8. Inspect or stop the services
 
 ```bash
 docker compose logs --follow polaris
@@ -134,4 +176,4 @@ docker compose down
 
 Do not run `docker compose down -v`; it deletes the Polaris metadata stored in the PostgreSQL volume.
 
-Reference: [Polaris Azure storage configuration](https://polaris.apache.org/releases/1.7.0/configuration/configuring-polaris-for-production/configuring-azure-blob-cloud-storage-specific/).
+References: [Polaris Azure storage configuration](https://polaris.apache.org/releases/1.7.0/configuration/configuring-polaris-for-production/configuring-azure-blob-cloud-storage-specific/), [using Polaris with Spark](https://polaris.apache.org/releases/1.7.0/getting-started/using-polaris/), and [Iceberg 1.11.0 releases](https://iceberg.apache.org/releases/).

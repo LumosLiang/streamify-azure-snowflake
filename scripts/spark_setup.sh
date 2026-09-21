@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SPARK_VERSION="${SPARK_VERSION:-4.2.0}"
+SPARK_VERSION="${SPARK_VERSION:-4.1.3}"
 SPARK_DIR="${HOME}/spark"
 SPARK_HOME="${SPARK_DIR}/spark-${SPARK_VERSION}-bin-hadoop3"
 SPARK_DOWNLOAD_BASE_URL="${SPARK_DOWNLOAD_BASE_URL:-https://archive.apache.org/dist/spark}"

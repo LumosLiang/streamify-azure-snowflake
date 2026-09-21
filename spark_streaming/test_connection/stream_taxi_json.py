@@ -1,5 +1,5 @@
 #Run the script using the following command 
-# spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.2.0 stream_taxi_json.py
+# spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.3 stream_taxi_json.py
 
 import os
 from pyspark.sql import SparkSession

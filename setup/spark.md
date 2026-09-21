@@ -16,7 +16,7 @@ Terraform 只创建基础设施，不会自动安装或启动 Spark。先完成 
 bash scripts/spark_setup.sh
 ```
 
-脚本安装 Java 17 和 Spark 4.2.0，并创建 `~/.spark_env`。三台 VM 必须使用相同版本。
+脚本安装 Java 17 和 Spark 4.1.3，并创建 `~/.spark_env`。三台 VM 必须使用相同版本。
 
 ### 2. 启动 master 和 workers
 
@@ -68,7 +68,7 @@ Terraform 已向三台 Spark VM 的 managed identity 授予容器级 `Storage Bl
 
 ### 4. 验证集群和 Kafka
 
-先在三台 VM 上分别确认版本。三台输出中的 Java 主版本应为 `17`，Spark 版本应为 `4.2.0`：
+先在三台 VM 上分别确认版本。三台输出中的 Java 主版本应为 `17`，Spark 版本应为 `4.1.3`：
 
 ```bash
 java -version
@@ -94,7 +94,7 @@ ls -lt "${SPARK_HOME}/logs" | head
 ```bash
 spark-submit \
   --master "${SPARK_MASTER_URL}" \
-  --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.2.0 \
+  --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.3 \
   validate_kafka.py
 ```
 
@@ -107,7 +107,7 @@ spark-submit \
 ```bash
 spark-submit \
   --master "${SPARK_MASTER_URL}" \
-  --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.2.0,org.apache.spark:spark-hadoop-cloud_2.13:4.2.0 \
+  --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.3,org.apache.spark:spark-hadoop-cloud_2.13:4.1.3 \
   stream_all_events.py
 ```
 

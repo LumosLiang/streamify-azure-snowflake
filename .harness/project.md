@@ -41,14 +41,14 @@ are not yet part of the dimensional model.
 | Snowflake | `snowflake/` | Roles, users, database/schema/warehouse, storage integration, file format and stage |
 | Airflow | `airflow/`, `setup/airflow*.md` | Schedule Snowflake loads and dbt commands |
 | dbt | `dbt/`, `setup/dbt*.md` | Seeds, dimensions, fact table and wide view |
-| Polaris | `polaris/`, `setup/polaris*.md` | Catalog service and PostgreSQL metadata service; Iceberg integration remains deferred |
+| Polaris | `polaris/`, `setup/polaris*.md` | Catalog service and PostgreSQL metadata service; catalog and Spark principal are configured, while the Iceberg data path remains deferred |
 
 ## Runtime topology and identities
 
 - Kafka VM: Kafka and Eventsim Docker containers.
 - Airflow VM: Airflow Docker Compose stack; dbt is installed in the custom
   Airflow image and the repository `dbt/` directory is mounted into containers.
-- Spark master and two workers: Spark 4.2.0 installed directly on Ubuntu 24.04.
+- Spark master and two workers: Spark 4.1.3 installed directly on Ubuntu 24.04.
 - Spark VM managed identities have `Storage Blob Data Contributor` on the
   existing `streamify` container.
 - Airflow VM managed identity has `Storage Blob Data Reader` on `streamify`.
@@ -80,20 +80,19 @@ must re-check live state before making operational claims.
 
 ## Work in progress and deferred decisions
 
-The current Iceberg preparation adds a private `streamify-iceberg` container
-and prepares Polaris Azure credentials. It does not yet create a
-Polaris catalog, namespace, Iceberg table, Spark Iceberg writer, Snowflake
-catalog integration, or Airflow maintenance DAG.
+The current Iceberg preparation adds a private `streamify-iceberg` container,
+Polaris Azure credentials, one Polaris catalog, and a Spark principal. It does
+not yet create a namespace, Iceberg table, Spark Iceberg writer, Snowflake
+catalog integration, or Airflow maintenance DAG. Catalog storage access and the
+Spark principal remain configured but unverified until Spark creates a table.
 
 Do not implement those later stages as part of a smaller Terraform, RBAC, or
 Polaris setup request. The intended sequence is:
 
-1. Create and verify the isolated container.
-2. Configure and verify Polaris storage access.
-3. Create one isolated test catalog/table.
-4. Add one parallel Spark Iceberg path without replacing current Parquet output.
-5. Evaluate Snowflake access.
-6. Add compaction/snapshot/orphan-file maintenance only after the table path is
+1. Create one isolated namespace and Iceberg test table through Spark.
+2. Add one parallel Spark Iceberg path without replacing current Parquet output.
+3. Evaluate Snowflake access.
+4. Add compaction/snapshot/orphan-file maintenance only after the table path is
    understood and approved.
 
 Also deferred: playback update/correction/delete simulation. If revisited,

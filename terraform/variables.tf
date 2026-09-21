@@ -19,6 +19,11 @@ variable "admin_object_id" {
   type        = string
 }
 
+variable "polaris_service_principal_object_id" {
+  description = "Microsoft Entra object ID of the Polaris storage service principal."
+  type        = string
+}
+
 variable "admin_username" {
   type    = string
   default = "streamify"

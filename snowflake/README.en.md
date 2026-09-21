@@ -44,6 +44,6 @@ The URL uses `azure://<account>.blob.core.windows.net/streamify/`; this is also 
 test -f airflow/.env || cp airflow/.env.example airflow/.env
 ```
 
-Set `SNOWFLAKE_ACCOUNT` and the private-key passphrase. The other defaults can remain unchanged. Never commit `airflow/.env` or the private key.
+Set `SNOWFLAKE_ACCOUNT` and the private-key passphrase. The other defaults can remain unchanged.
 
 Then build the image using [Airflow setup](../setup/airflow.en.md) and verify the connection using [dbt setup](../setup/dbt.en.md).

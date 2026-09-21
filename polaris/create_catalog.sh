@@ -128,7 +128,8 @@ curl --fail-with-body --silent --show-error \
       \"type\": \"INTERNAL\",
       \"name\": \"${catalog_name}\",
       \"properties\": {
-        \"default-base-location\": \"${base_location}\"
+        \"default-base-location\": \"${base_location}\",
+        \"polaris.config.namespace-custom-location.enabled\": \"true\"
       },
       \"storageConfigInfo\": {
         \"storageType\": \"AZURE\",

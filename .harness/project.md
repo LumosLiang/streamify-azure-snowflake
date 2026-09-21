@@ -41,7 +41,7 @@ are not yet part of the dimensional model.
 | Snowflake | `snowflake/` | Roles, users, database/schema/warehouse, storage integration, file format and stage |
 | Airflow | `airflow/`, `setup/airflow*.md` | Schedule Snowflake loads and dbt commands |
 | dbt | `dbt/`, `setup/dbt*.md` | Seeds, dimensions, fact table and wide view |
-| Polaris | `polaris/`, `setup/polaris*.md` | Catalog service and PostgreSQL metadata service; catalog and Spark principal are configured, while the Iceberg data path remains deferred |
+| Polaris | `polaris/`, `setup/polaris*.md` | Catalog and PostgreSQL metadata services; one Spark SQL validation table is verified, while the streaming Iceberg path remains deferred |
 
 ## Runtime topology and identities
 
@@ -52,11 +52,12 @@ are not yet part of the dimensional model.
 - Spark VM managed identities have `Storage Blob Data Contributor` on the
   existing `streamify` container.
 - Airflow VM managed identity has `Storage Blob Data Reader` on `streamify`.
-- The deploying Azure user has account-scoped `Storage Blob Data Reader`, which
-  covers both containers.
+- The deploying Azure user has `Storage Blob Data Reader` on both Storage
+  Accounts.
 - Snowflake uses its Azure enterprise application to read the existing container.
-- Polaris is designed to use a separate service principal with account-scoped
-  `Storage Blob Data Contributor`; catalog/table access has not been validated.
+- Polaris uses a separate service principal with `Storage Blob Data Contributor`
+  on the Iceberg Storage Account. Catalog and validation-table access have been
+  verified through Spark SQL.
 
 Do not substitute one identity for another without tracing who performs the
 actual data-plane operation.
@@ -80,19 +81,21 @@ must re-check live state before making operational claims.
 
 ## Work in progress and deferred decisions
 
-The current Iceberg preparation adds a private `streamify-iceberg` container,
-Polaris Azure credentials, one Polaris catalog, and a Spark principal. It does
-not yet create a namespace, Iceberg table, Spark Iceberg writer, Snowflake
-catalog integration, or Airflow maintenance DAG. Catalog storage access and the
-Spark principal remain configured but unverified until Spark creates a table.
+The current Iceberg preparation adds a separate HNS-enabled Storage Account with
+a private `streamify-iceberg` container, Polaris Azure credentials, one Polaris
+catalog, and a Spark principal. The catalog points to the dedicated account and
+its RBAC is configured. Spark SQL has created the isolated `validation`
+namespace and `spark_connectivity` Iceberg table, inserted one row, and read it
+back successfully. A streaming Iceberg writer, Snowflake catalog integration,
+and Airflow maintenance DAG remain deferred.
 
 Do not implement those later stages as part of a smaller Terraform, RBAC, or
-Polaris setup request. The intended sequence is:
+Polaris setup request. The isolated namespace and validation table are complete.
+The remaining sequence is:
 
-1. Create one isolated namespace and Iceberg test table through Spark.
-2. Add one parallel Spark Iceberg path without replacing current Parquet output.
-3. Evaluate Snowflake access.
-4. Add compaction/snapshot/orphan-file maintenance only after the table path is
+1. Add one parallel Spark Iceberg path without replacing current Parquet output.
+2. Evaluate Snowflake access.
+3. Add compaction/snapshot/orphan-file maintenance only after the table path is
    understood and approved.
 
 Also deferred: playback update/correction/delete simulation. If revisited,

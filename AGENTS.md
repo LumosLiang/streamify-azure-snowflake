@@ -32,16 +32,16 @@ Eventsim -> Kafka -> Spark Structured Streaming -> ADLS Gen2 Parquet
 ```
 
 - Azure infrastructure is defined by Terraform: five VMs, network resources,
-  managed identities, RBAC, and one ADLS Gen2 account.
+  managed identities, RBAC, and two ADLS Gen2 accounts.
 - Kafka and Eventsim share the Kafka VM and run in Docker. Kafka uses KRaft.
 - Spark is a manually installed standalone cluster: one master and two workers.
 - Airflow runs with Docker Compose on its own VM and invokes Snowflake SQL and dbt.
 - Snowflake is hosted on AWS and reads Parquet from Azure through a storage
   integration and external stage.
 - `streamify` holds current events and checkpoints.
-- `streamify-iceberg` and Polaris setup exist, but the Iceberg data path,
-  catalog, tables, Spark writes, Snowflake integration, and maintenance jobs are
-  not implemented yet.
+- Polaris has a catalog, Spark principal, and one verified validation Iceberg
+  table in the separate `streamify-iceberg` account. A streaming Iceberg writer,
+  Snowflake integration, and maintenance jobs are not implemented yet.
 
 Never describe planned or partially configured work as operational.
 

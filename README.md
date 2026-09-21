@@ -16,11 +16,13 @@ Eventsim → Kafka → Spark Structured Streaming → ADLS Gen2（Parquet）
 
 Terraform 在 Azure 创建五台 VM、网络和 ADLS Gen2：一台运行 Kafka 与 Eventsim 容器，一台运行 Airflow 容器，另外三台直接安装开源 Spark，组成一个 master、两个 worker 的 standalone 集群。Snowflake 位于 AWS，通过 Azure storage integration 读取 ADLS 中的 Parquet；Airflow 每小时运行 `COPY INTO` 和 dbt。当前 dbt 核心模型主要使用听歌事件，页面浏览和登录事件已入仓，但尚未用于这些模型。项目没有部署 BI 仪表盘。
 
+Polaris 已经通过 Spark SQL 在独立的 ADLS Gen2 Storage Account 中完成一张 Iceberg 验证表；它尚未接入上面的 streaming 主链路。
+
 Eventsim 使用 [Million Song Dataset 的 10,000 首歌曲子集](http://millionsongdataset.com/pages/getting-dataset/#subset)，其 Docker 构建来自 [viirya 的分支](https://github.com/viirya/eventsim)。
 
 ## 部署文档
 
-按顺序阅读 [Azure 账号与权限](setup/azure.md)、[Terraform](setup/terraform.md)、[SSH](setup/ssh.md)、[Kafka 与 Eventsim](setup/kafka.md)、[Spark](setup/spark.md)、[Snowflake](snowflake/README.md)、[Airflow](setup/airflow.md) 和 [dbt](setup/dbt.md)。配置示例使用占位符；实际 IP、账号和密钥不要提交到仓库。
+按顺序阅读 [Azure 账号与权限](setup/azure.md)、[Terraform](setup/terraform.md)、[SSH](setup/ssh.md)、[Kafka 与 Eventsim](setup/kafka.md)、[Spark](setup/spark.md)、[Snowflake](snowflake/README.md)、[Airflow](setup/airflow.md) 和 [dbt](setup/dbt.md)。独立的 Iceberg 验证环境见 [Polaris](setup/polaris.md)。配置示例统一使用占位符。
 
 ## 原项目参考图片
 

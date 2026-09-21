@@ -29,6 +29,8 @@ locals {
     spark-worker-1 = var.spark_vm_size
     spark-worker-2 = var.spark_vm_size
   }
+  # Deterministic, globally unique, and avoids Azure SDK endpoint keywords.
+  iceberg_storage_account_name = "stfice${substr(sha1(var.subscription_id), 0, 12)}"
 }
 
 resource "azurerm_resource_group" "main" {
@@ -148,11 +150,31 @@ resource "azurerm_storage_container" "lake" {
   container_access_type = "private"
 }
 
-# Keep Iceberg tables separate from the existing event files and checkpoints.
+# Keep Iceberg on a separate HNS-enabled account from event files and checkpoints.
+resource "azurerm_storage_account" "iceberg" {
+  name                            = local.iceberg_storage_account_name
+  resource_group_name             = azurerm_resource_group.main.name
+  location                        = azurerm_resource_group.main.location
+  account_tier                    = "Standard"
+  account_replication_type        = "LRS"
+  is_hns_enabled                  = true
+  min_tls_version                 = "TLS1_2"
+  shared_access_key_enabled       = false
+  allow_nested_items_to_be_public = false
+  public_network_access_enabled   = true
+}
+
 resource "azurerm_storage_container" "iceberg" {
   name                  = "streamify-iceberg"
-  storage_account_id    = azurerm_storage_account.lake.id
+  storage_account_id    = azurerm_storage_account.iceberg.id
   container_access_type = "private"
+}
+
+resource "azurerm_role_assignment" "polaris_iceberg_storage" {
+  scope                = azurerm_storage_account.iceberg.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = var.polaris_service_principal_object_id
+  principal_type       = "ServicePrincipal"
 }
 
 # Runtime identities: no downloaded service-account key is needed.
@@ -170,8 +192,14 @@ resource "azurerm_role_assignment" "airflow_storage" {
 }
 
 resource "azurerm_role_assignment" "admin_storage_reader" {
-  # Account scope covers both streamify and streamify-iceberg.
   scope                = azurerm_storage_account.lake.id
+  role_definition_name = "Storage Blob Data Reader"
+  principal_id         = var.admin_object_id
+  principal_type       = "User"
+}
+
+resource "azurerm_role_assignment" "admin_iceberg_storage_reader" {
+  scope                = azurerm_storage_account.iceberg.id
   role_definition_name = "Storage Blob Data Reader"
   principal_id         = var.admin_object_id
   principal_type       = "User"

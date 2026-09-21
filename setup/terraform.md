@@ -28,9 +28,9 @@ cp terraform.tfvars.example terraform.tfvars
 | `main.tf` | 定义要创建的资源 |
 | `variables.tf` | 定义参数、类型和默认值 |
 | `terraform.tfvars.example` | 参数填写示例，不会自动加载 |
-| `terraform.tfvars` | 你的实际参数，覆盖默认值，不提交到 Git |
+| `terraform.tfvars` | 实际参数值，覆盖 `variables.tf` 中的默认值 |
 | `.terraform.lock.hcl` | 锁定 provider 版本和校验值，提交到 Git |
-| `.terraform/` | `init` 下载的插件缓存，不提交到 Git |
+| `.terraform/` | `init` 下载的本地插件缓存 |
 
 填写这几个值：
 
@@ -39,6 +39,7 @@ cp terraform.tfvars.example terraform.tfvars
 | `subscription_id` | Azure Portal 中额度订阅的 Subscription ID |
 | `storage_account_name` | 自己起的全球唯一名称，3–24 位小写字母或数字 |
 | `admin_object_id` | `az ad signed-in-user show --query id --output tsv` 返回的 Object ID |
+| `polaris_service_principal_object_id` | Polaris 存储 service principal 的 Object ID，获取方法见 [Polaris 配置](polaris.md) |
 | `admin_source_cidr` | SSH 实际公网出口 IPv4 加 `/32` |
 | `ssh_public_key_path` | Mac 上的公钥路径，例如 `~/.ssh/id_ed25519.pub` |
 | `location` | `southeastasia`，即新加坡 |
@@ -93,7 +94,7 @@ terraform apply
 | Kafka VM | 1 台 D4as v5：4 核、16 GiB |
 | Airflow VM | 1 台 E2as v5：2 核、16 GiB |
 | Spark master + 两个 worker | 3 台 D2as v5：每台 2 核、8 GiB，Spark 另行安装 |
-| 数据湖 | 1 个 ADLS Gen2 Storage Account + `streamify`、`streamify-iceberg` 两个容器 |
+| 数据湖 | 两个 ADLS Gen2 Storage Account：现有 Parquet 使用 `streamify`，Iceberg 使用独立的 `streamify-iceberg` |
 | Snowflake | Terraform 不创建；在现有 AWS 账号中按 [Snowflake 初始化](../snowflake/README.md) 配置 |
 
 每台 VM 使用 Ubuntu 24.04 和 32 GiB Standard SSD 系统盘。
@@ -110,7 +111,7 @@ abfss://streamify@<account-name>.dfs.core.windows.net/<event-type>/
 abfss://streamify@<account-name>.dfs.core.windows.net/checkpoint/<event-type>/
 ```
 
-`streamify-iceberg` 是独立的空容器，留给后续 Iceberg 表使用；创建它不会改变现有写入路径。
+`streamify-iceberg` 位于独立的 HNS Storage Account。账号名由订阅 ID 的哈希确定，并避开会触发 [Azure SDK endpoint 解析问题](../polaris/azure-directory-sas-account-name-bug.md)的服务关键字；它不会改变现有 Parquet 写入路径。
 
 Snowflake 外部 Stage 对应的地址为：
 
@@ -127,10 +128,10 @@ azure://<account-name>.blob.core.windows.net/streamify/
 | 用途 | 身份与权限 | 配置位置 |
 | --- | --- | --- |
 | 在 Mac 上部署资源 | 你的 Azure 用户及部署权限 | Azure CLI 登录、订阅 IAM |
-| 在 Portal 查看两个容器的数据 | 你的 Azure 用户，Storage Blob Data Reader，账号级作用域 | Terraform 创建 |
+| 在 Portal 查看两个账号的数据 | 你的 Azure 用户，Storage Blob Data Reader，账号级作用域 | Terraform 创建 |
 | Spark 读写现有 `streamify` 容器 | VM Managed Identity，Storage Blob Data Contributor | Terraform 创建 |
 | Airflow 读取现有 `streamify` 容器 | VM Managed Identity，Storage Blob Data Reader | Terraform 创建 |
-| Polaris 访问新容器 | 独立 Azure Service Principal，Storage Blob Data Contributor | 按 [Polaris 配置](polaris.md) 手动设置 |
+| Polaris 访问 Iceberg 账号 | 独立 Azure Service Principal，Storage Blob Data Contributor | Terraform 根据 principal Object ID 创建 |
 | AWS Snowflake 读取 ADLS | Snowflake 对应的 Azure Service Principal | 按 [Snowflake 初始化](../snowflake/README.md) 授权 |
 
 Managed Identity 是 Azure 为 VM 管理的程序身份，不需要手动保存凭据。Terraform 创建身份和权限后，Spark 等程序仍需配置为使用这个身份访问存储。

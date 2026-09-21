@@ -31,20 +31,20 @@ openssl rand -hex 24
 
 ## 3. Configure an ADLS access identity
 
-Polaris uses a separate Azure service principal to access storage. It is distinct from the Polaris root principal. On your Mac, confirm that Azure CLI is using the deployment subscription, then get the Storage Account resource ID:
+Polaris uses a separate Azure service principal to access storage. It is distinct from the Polaris root principal. Create this identity once:
 
 ```bash
-az storage account show --resource-group streamify-rg \
-  --name "<storage-account-name>" --query id --output tsv
+az ad sp create-for-rbac \
+  --name streamify-polaris-storage
 ```
 
-Create the service principal once and grant it `Storage Blob Data Contributor` on that Storage Account:
+Use the returned `appId` to get the service principal Object ID:
 
 ```bash
-az ad sp create-for-rbac --name streamify-polaris-storage \
-  --role "Storage Blob Data Contributor" \
-  --scopes "<storage-account-resource-id>"
+az ad sp show --id "<appId>" --query id --output tsv
 ```
+
+Set `polaris_service_principal_object_id` in `terraform.tfvars` to that value. Terraform grants `Storage Blob Data Contributor` on the dedicated Iceberg Storage Account.
 
 `.env.example` includes the following values. If the `.env` on the Spark Master already exists, add them to the end of the file:
 
@@ -54,7 +54,7 @@ AZURE_CLIENT_ID=<appId>
 AZURE_CLIENT_SECRET=<password>
 ```
 
-They map to the command output's `tenant`, `appId`, and `password`. Docker Compose passes them to Polaris. When an Azure catalog is created later, Polaris uses the service-principal credentials through the Azure SDK `DefaultAzureCredential` chain to access ADLS and vend short-lived SAS tokens to table clients.
+They map to the creation command's `tenant`, `appId`, and `password`. Docker Compose passes them to Polaris. When an Azure catalog is created later, Polaris uses the service-principal credentials through the Azure SDK `DefaultAzureCredential` chain to access ADLS and vend short-lived SAS tokens to table clients.
 
 ## 4. Start and check the service
 
@@ -98,6 +98,8 @@ The example's default table location is:
 abfss://streamify-iceberg@<storage-account-name>.dfs.core.windows.net/lake/
 ```
 
+The script also enables namespace custom locations for the catalog. Spark places the `validation` namespace at `lake/validation/` under the default base location; without this property, Polaris rejects that path.
+
 It does not create a namespace or Iceberg table. If the catalog already exists, the script exits without overwriting its configuration.
 
 ## 6. Create the Spark principal
@@ -123,20 +125,42 @@ bash create_spark_principal.sh \
   <catalog-role-name>
 ```
 
-The four names identify the catalog, Spark identity, identity role, and catalog role. The script first checks that the catalog exists and refuses to overwrite a principal or role with the same name. On success, it prints the `clientId` and `clientSecret` needed in the next step.
+Using the catalog example from the previous step, the four arguments can be:
+
+```bash
+bash create_spark_principal.sh \
+  streamify_iceberg \
+  spark_client \
+  spark_principal_role \
+  spark_catalog_role
+```
+
+The first argument must be an existing Polaris catalog. The remaining three are authorization objects we name for Spark: `spark_client` is the principal Spark uses to sign in to Polaris, `spark_principal_role` represents that principal's permission set, and `spark_catalog_role` is a role inside the catalog. The script connects them as follows, then grants table creation, read, and write access to the catalog role:
+
+```text
+spark_client → spark_principal_role → spark_catalog_role → CATALOG_MANAGE_CONTENT
+```
+
+The script first checks that the catalog exists and refuses to overwrite a principal or role with the same name. On success, it prints the `clientId` and `clientSecret` needed in the next step. Save them in `~/.polaris_spark.env` on the Spark Master:
+
+```bash
+export POLARIS_SPARK_CLIENT_ID=<clientId>
+export POLARIS_SPARK_CLIENT_SECRET=<clientSecret>
+```
+
+This file is for the Spark client only. `polaris/.env` continues to configure the Polaris service and its Azure storage identity.
 
 ## 7. Validate the first Iceberg table with Spark SQL
 
-In the `polaris/` directory on the Spark Master, load the Spark environment and enter the credentials created for the Spark principal in the previous step:
+In the `polaris/` directory on the Spark Master, load the Spark environment and Spark principal credentials:
 
 ```bash
 source "$HOME/.spark_env"
-read -r -p 'Spark principal client ID: ' POLARIS_SPARK_CLIENT_ID
-read -r -s -p 'Spark principal client secret: ' POLARIS_SPARK_CLIENT_SECRET
-printf '\n'
+source "$HOME/.polaris_spark.env"
+export SPARK_MASTER_URL="spark://$(hostname -I | awk '{print $1}'):7077"
 ```
 
-Then start an interactive Spark SQL session yourself. Replace `<catalog-name>` with the existing Azure catalog in Polaris:
+This `SPARK_MASTER_URL` command gets the Spark Master's private IP and forms its standalone Master URL. Then start an interactive Spark SQL session yourself. Replace `<catalog-name>` with the existing Azure catalog in Polaris:
 
 ```bash
 "$SPARK_HOME/bin/spark-sql" \

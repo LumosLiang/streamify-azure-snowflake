@@ -31,20 +31,20 @@ openssl rand -hex 24
 
 ## 3. 配置 ADLS 访问身份
 
-Polaris 使用单独的 Azure service principal 访问存储；它与 Polaris 的 root principal 不是同一个身份。在 Mac 上先确认 Azure CLI 选中了部署订阅，然后查询 Storage Account 的资源 ID：
+Polaris 使用单独的 Azure service principal 访问存储；它与 Polaris 的 root principal 不是同一个身份。首次创建该身份：
 
 ```bash
-az storage account show --resource-group streamify-rg \
-  --name "<storage-account-name>" --query id --output tsv
+az ad sp create-for-rbac \
+  --name streamify-polaris-storage
 ```
 
-首次创建 service principal，并在该 Storage Account 上授予 `Storage Blob Data Contributor`：
+用返回的 `appId` 查询 service principal Object ID：
 
 ```bash
-az ad sp create-for-rbac --name streamify-polaris-storage \
-  --role "Storage Blob Data Contributor" \
-  --scopes "<storage-account-resource-id>"
+az ad sp show --id "<appId>" --query id --output tsv
 ```
+
+把它填入 `terraform.tfvars` 的 `polaris_service_principal_object_id`。Terraform 会在独立 Iceberg Storage Account 上授予 `Storage Blob Data Contributor`。
 
 `.env.example` 已包含下面三项；如果 Spark Master 上的 `.env` 是之前创建的，在文件末尾补上它们：
 
@@ -54,7 +54,7 @@ AZURE_CLIENT_ID=<appId>
 AZURE_CLIENT_SECRET=<password>
 ```
 
-它们分别来自命令输出的 `tenant`、`appId`、`password`。Docker Compose 会把这些值传给 Polaris；后续创建 Azure catalog 时，Polaris 通过 Azure SDK 的 `DefaultAzureCredential` 使用这组 service principal 凭据访问 ADLS，并向表客户端签发短期 SAS token。
+它们分别来自创建命令输出的 `tenant`、`appId`、`password`。Docker Compose 会把这些值传给 Polaris；后续创建 Azure catalog 时，Polaris 通过 Azure SDK 的 `DefaultAzureCredential` 使用这组 service principal 凭据访问 ADLS，并向表客户端签发短期 SAS token。
 
 ## 4. 启动并检查服务
 
@@ -98,6 +98,8 @@ bash create_catalog.sh \
 abfss://streamify-iceberg@<storage-account-name>.dfs.core.windows.net/lake/
 ```
 
+脚本同时启用 catalog 的 namespace custom location。Spark 会把 `validation` namespace 放在默认根路径下的 `lake/validation/`；没有这个属性时，Polaris 会拒绝该路径。
+
 这一步不创建 namespace 或 Iceberg 表。若 catalog 已存在，脚本会退出，不会覆盖现有配置。
 
 ## 6. 创建 Spark principal
@@ -123,20 +125,42 @@ bash create_spark_principal.sh \
   <catalog-role-name>
 ```
 
-四个名字分别表达 catalog、Spark 身份、身份角色和 catalog 角色。脚本先确认 catalog 存在，并拒绝覆盖同名 principal 或角色。成功时会打印下一步需要的 `clientId` 和 `clientSecret`。
+按上一步的 catalog 示例，四个参数可以这样填写：
+
+```bash
+bash create_spark_principal.sh \
+  streamify_iceberg \
+  spark_client \
+  spark_principal_role \
+  spark_catalog_role
+```
+
+第一个参数必须是已经创建的 Polaris catalog。后三个是我们为 Spark 自己命名的授权对象：`spark_client` 是 Spark 登录 Polaris 时使用的 principal，`spark_principal_role` 代表这个 principal 的权限集合，`spark_catalog_role` 则是 catalog 内的角色。脚本会把它们连成下面的关系，并把建表、读表和写表权限授予 catalog role：
+
+```text
+spark_client → spark_principal_role → spark_catalog_role → CATALOG_MANAGE_CONTENT
+```
+
+脚本先确认 catalog 存在，并拒绝覆盖同名 principal 或角色。成功时会打印下一步需要的 `clientId` 和 `clientSecret`。将它们保存为 Spark Master 本地的 `~/.polaris_spark.env`：
+
+```bash
+export POLARIS_SPARK_CLIENT_ID=<clientId>
+export POLARIS_SPARK_CLIENT_SECRET=<clientSecret>
+```
+
+这个文件只用于 Spark client；`polaris/.env` 仍只配置 Polaris 服务及其 Azure 存储身份。
 
 ## 7. 用 Spark SQL 验证第一张 Iceberg 表
 
-在 Spark Master 的 `polaris/` 目录，先加载 Spark 环境变量，并输入上一步创建 Spark principal 时得到的凭据：
+在 Spark Master 的 `polaris/` 目录，先加载 Spark 环境变量和 Spark principal 凭据：
 
 ```bash
 source "$HOME/.spark_env"
-read -r -p 'Spark principal client ID: ' POLARIS_SPARK_CLIENT_ID
-read -r -s -p 'Spark principal client secret: ' POLARIS_SPARK_CLIENT_SECRET
-printf '\n'
+source "$HOME/.polaris_spark.env"
+export SPARK_MASTER_URL="spark://$(hostname -I | awk '{print $1}'):7077"
 ```
 
-然后自己启动交互式 Spark SQL。将 `<catalog-name>` 替换为 Polaris 中已有的 Azure catalog：
+这条 `SPARK_MASTER_URL` 命令在 Spark Master 上取它的私网 IP，组成 standalone Master URL。然后自己启动交互式 Spark SQL。将 `<catalog-name>` 替换为 Polaris 中已有的 Azure catalog：
 
 ```bash
 "$SPARK_HOME/bin/spark-sql" \

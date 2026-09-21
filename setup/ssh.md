@@ -6,7 +6,7 @@
 
 ## 1. 查看连接信息
 
-用 Azure CLI 查看自己的 VM，结果只在本地使用，不要提交到仓库：
+用 Azure CLI 查看 VM 的连接信息：
 
 ```zsh
 az vm list -d --resource-group "<resource-group>" \

@@ -18,6 +18,8 @@ Review the diff for:
 - stale GCP/BigQuery/GCS/Dataproc assumptions in current-path docs;
 - claims that configured or planned behavior was runtime verified;
 - a changed Chinese setup/README without its English counterpart.
+- generic personal reminders about committing `.env`, credentials, or command
+  output that belong in `AGENTS.md` rather than project-facing documentation.
 
 Do not print `terraform.tfvars`, `.env`, state files, private keys, or live account
 configuration during this review.

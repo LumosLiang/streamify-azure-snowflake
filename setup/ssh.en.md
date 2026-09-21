@@ -6,7 +6,7 @@ Create the VMs using the [Terraform guide](terraform.en.md) first. Run the follo
 
 ## 1. Find the connection details
 
-Use Azure CLI to inspect your VMs. Keep the output local; do not commit it:
+Use Azure CLI to inspect the VM connection details:
 
 ```zsh
 az vm list -d --resource-group "<resource-group>" \

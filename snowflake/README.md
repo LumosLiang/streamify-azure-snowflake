@@ -44,6 +44,6 @@ az account show --query tenantId -o tsv
 test -f airflow/.env || cp airflow/.env.example airflow/.env
 ```
 
-填写 `SNOWFLAKE_ACCOUNT` 和私钥 passphrase。其余值保持默认即可。`airflow/.env` 和私钥均不能提交到 Git。
+填写 `SNOWFLAKE_ACCOUNT` 和私钥 passphrase，其余值保持默认即可。
 
 接着按 [Airflow 安装](../setup/airflow.md) 构建镜像，再按 [dbt 配置](../setup/dbt.md) 验证连接。

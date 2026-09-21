@@ -97,6 +97,10 @@ environment variable or canonical file can remain the source.
 - Write natural, concise prose organized from architecture to operation.
 - Explain why a setting exists when that prevents a likely misuse; omit chat
   history and one-off questions.
+- For a reusable troubleshooting note, preserve the project context and the
+  investigation path: what we were trying to do, what failed, which hypotheses
+  were ruled out, what evidence identified the cause, and why the final fix was
+  chosen. Do not reduce it to a detached symptom/root-cause template.
 - Keep general credential-handling rules in `AGENTS.md`. Setup guides should
   state the required keys and where the process consumes them, without repeating
   generic warnings about committing `.env` files or command output.

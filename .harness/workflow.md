@@ -25,7 +25,8 @@ when it changes the present design. Do not implement it until requested.
 Examples:
 
 - Adding an ADLS container does not authorize a Spark writer or catalog.
-- Setting up Polaris does not authorize Iceberg tables or maintenance DAGs.
+- Validating one Iceberg table does not authorize a streaming Iceberg writer or
+  maintenance DAGs.
 - Updating Airflow setup does not authorize rewriting DAG business logic.
 - A remembered convenience idea is not authorization to persist it.
 

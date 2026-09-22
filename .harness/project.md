@@ -41,7 +41,7 @@ are not yet part of the dimensional model.
 | Snowflake | `snowflake/` | Roles, users, database/schema/warehouse, storage integration, file format and stage |
 | Airflow | `airflow/`, `setup/airflow*.md` | Schedule Snowflake loads and dbt commands |
 | dbt | `dbt/`, `setup/dbt*.md` | Seeds, dimensions, fact table and wide view |
-| Polaris | `polaris/`, `setup/polaris*.md` | Catalog and PostgreSQL metadata services; one Spark SQL validation table is verified, while the streaming Iceberg path remains deferred |
+| Polaris | `polaris/`, `setup/polaris*.md` | Catalog and PostgreSQL metadata services; the Spark SQL validation table and the parallel Kafka-to-Iceberg `listen_events` path are verified |
 
 ## Runtime topology and identities
 
@@ -56,10 +56,9 @@ are not yet part of the dimensional model.
   Accounts.
 - Snowflake uses its Azure enterprise application to read the existing container.
 - Polaris uses a separate service principal with `Storage Blob Data Contributor`
-  on the Iceberg table container. Spark VM managed identities are configured for
-  `Storage Blob Data Contributor` on the separate Iceberg checkpoint container.
-  Catalog and validation-table access have been verified through Spark SQL;
-  checkpoint-container access is pending Terraform apply.
+  on the dedicated Iceberg Storage Account, which lets it mint ADLS
+  user-delegation SAS. Spark VM managed identities have `Storage Blob Data
+  Contributor` on the separate Iceberg checkpoint container.
 
 Do not substitute one identity for another without tracing who performs the
 actual data-plane operation.
@@ -77,6 +76,8 @@ actual data-plane operation.
   persistent data volume, so container replacement can lose broker data.
 - Spark services and streaming applications require explicit startup; a remote
   shell is not a durable process supervisor.
+- The parallel Iceberg writer has consumed `listen_events`, committed micro-batches
+  to `streamify_raw.listen_events`, and created state in its checkpoint container.
 
 These statements describe repository intent plus user-reported results. An agent
 must re-check live state before making operational claims.
@@ -86,22 +87,20 @@ must re-check live state before making operational claims.
 The current Iceberg preparation adds a separate HNS-enabled Storage Account with
 private `streamify-iceberg` and `streamify-checkpoints` containers, Polaris Azure
 credentials, one Polaris catalog, and a Spark principal. The catalog points to
-the dedicated table container and its RBAC is configured. The checkpoint
-container and Spark identity RBAC are defined in Terraform but await apply.
+the dedicated table container and its RBAC is configured.
 Spark SQL has created the isolated `validation` namespace and
 `spark_connectivity` Iceberg table, inserted one row, and read it back
-successfully. `stream_listen_events_iceberg.py` now defines its Kafka read,
-normalization, table DDL, runtime configuration, isolated checkpoint path, and
-Iceberg writer; this streaming path is not runtime verified. Snowflake catalog
-integration and Airflow maintenance DAG remain deferred.
+successfully. `stream_listen_events_iceberg.py` has also consumed Kafka,
+created and written `streamify_raw.listen_events`, and initialized its isolated
+checkpoint path. Snowflake catalog integration and Airflow maintenance DAG
+remain deferred.
 
 Do not implement those later stages as part of a smaller Terraform, RBAC, or
 Polaris setup request. The isolated namespace and validation table are complete.
 The remaining sequence is:
 
-1. Add one parallel Spark Iceberg path without replacing current Parquet output.
-2. Evaluate Snowflake access.
-3. Add compaction/snapshot/orphan-file maintenance only after the table path is
+1. Evaluate Snowflake access.
+2. Add compaction/snapshot/orphan-file maintenance only after the table path is
    understood and approved.
 
 Also deferred: playback update/correction/delete simulation. If revisited,

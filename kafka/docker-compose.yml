@@ -1,3 +1,9 @@
+x-container-logging: &container-logging
+  driver: local
+  options:
+    max-size: "100m"
+    max-file: "3"
+
 services:
   broker:
     image: confluentinc/cp-server:7.9.9
@@ -6,6 +12,7 @@ services:
     container_name: broker
     ports:
       - "9092:9092"
+    logging: *container-logging
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -20,6 +27,10 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # Keep this learning broker bounded even when Eventsim runs continuously.
+      KAFKA_LOG_RETENTION_HOURS: 24
+      KAFKA_LOG_RETENTION_BYTES: 536870912
+      KAFKA_LOG_SEGMENT_BYTES: 134217728
       KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
       CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: broker:29092
       CONFLUENT_METRICS_REPORTER_TOPIC_REPLICAS: 1
@@ -32,6 +43,7 @@ services:
     restart: unless-stopped
     hostname: kafka-tools
     container_name: kafka-tools
+    logging: *container-logging
     command: ["tail", "-f", "/dev/null"]
     network_mode: "host"
 
@@ -44,6 +56,7 @@ services:
       - broker
     ports:
       - "8081:8081"
+    logging: *container-logging
     environment:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: "broker:29092"
@@ -59,6 +72,7 @@ services:
       - schema-registry
     ports:
       - "9021:9021"
+    logging: *container-logging
     environment:
       CONTROL_CENTER_BOOTSTRAP_SERVERS: 'broker:29092'
       CONTROL_CENTER_SCHEMA_REGISTRY_URL: "http://schema-registry:8081"

@@ -12,6 +12,9 @@ echo "Running Eventsim in detached mode..."
 docker run -itd \
   --network host \
   --name million_events \
+  --log-driver local \
+  --log-opt max-size=100m \
+  --log-opt max-file=3 \
   --memory="5.5g" \
   --memory-swap="7g" \
   --oom-kill-disable \

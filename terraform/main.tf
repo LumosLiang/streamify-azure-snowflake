@@ -29,6 +29,15 @@ locals {
     spark-worker-1 = var.spark_vm_size
     spark-worker-2 = var.spark_vm_size
   }
+  # Kafka retains broker data and container images locally, so only its OS disk
+  # receives the additional 30 GiB.
+  vm_os_disk_sizes = {
+    kafka          = 62
+    airflow        = 32
+    spark-master   = 32
+    spark-worker-1 = 32
+    spark-worker-2 = 32
+  }
   # Deterministic, globally unique, and avoids Azure SDK endpoint keywords.
   iceberg_storage_account_name = "stfice${substr(sha1(var.subscription_id), 0, 12)}"
 }
@@ -117,7 +126,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
   os_disk {
     caching              = "ReadWrite"
     storage_account_type = "StandardSSD_LRS"
-    disk_size_gb         = 32
+    disk_size_gb         = local.vm_os_disk_sizes[each.key]
   }
   source_image_reference {
     publisher = "Canonical"
@@ -179,7 +188,9 @@ resource "azurerm_storage_container" "iceberg_checkpoints" {
 }
 
 resource "azurerm_role_assignment" "polaris_iceberg_storage" {
-  scope                = azurerm_storage_container.iceberg.id
+  # Polaris creates user-delegation SAS tokens before it can downscope them to
+  # an HNS directory. Azure authorizes that signing action at account scope.
+  scope                = azurerm_storage_account.iceberg.id
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = var.polaris_service_principal_object_id
   principal_type       = "ServicePrincipal"

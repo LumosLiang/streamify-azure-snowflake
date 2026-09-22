@@ -4,6 +4,8 @@
 
 Kafka and Eventsim run in separate containers on the same VM. Kafka uses Confluent Platform 7.9.9 in KRaft mode without ZooKeeper. The Kafka Compose file has no persistent volume.
 
+To prevent continuously generated events from exhausting the VM disk, every Kafka Compose container and Eventsim use Docker's `local` logging driver with at most three 100 MiB log files per container. The broker defaults to retaining at most 24 hours and 512 MiB per partition; 128 MiB segments allow expired segments to be removed promptly.
+
 ## 1. Prepare the project
 
 Connect from your Mac:

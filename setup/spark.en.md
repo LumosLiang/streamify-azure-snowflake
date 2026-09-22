@@ -123,7 +123,7 @@ abfss://streamify@<storage-account-name>.dfs.core.windows.net/checkpoint/listen_
 
 `stream_listen_events_iceberg.py` is an independent learning job. It handles only `listen_events` and does not modify `stream_all_events.py`, which continues to write Parquet. Polaris vends short-lived SAS credentials for table files in the separate Iceberg Storage Account. Spark's streaming checkpoint is written by the Spark VM managed identity to the separate `streamify-checkpoints` container in that account.
 
-The file defines Kafka reading, normalization, creation of `streamify_raw.listen_events`, and append-mode Iceberg writing. The code has not yet been runtime-validated against the new checkpoint container.
+The file has been runtime-validated: it consumes Kafka `listen_events`, creates `streamify_raw.listen_events` in Polaris, and writes to Iceberg in append mode; the separate checkpoint container also contains streaming state. It continues to run in parallel with the existing Parquet job.
 
 Create the component runtime configuration from `spark_streaming/` on the Spark Master:
 

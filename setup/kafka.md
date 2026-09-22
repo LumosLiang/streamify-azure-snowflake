@@ -4,6 +4,8 @@
 
 Kafka 和 Eventsim 在同一台 VM 的独立容器中运行。Kafka 使用 Confluent Platform 7.9.9 的 KRaft 模式，不依赖 ZooKeeper。Kafka Compose 没有配置持久卷。
 
+为避免持续生成事件耗尽 VM 磁盘，所有 Kafka Compose 容器和 Eventsim 都使用 Docker `local` 日志驱动，每个容器最多保留 3 个 100 MiB 日志文件。Broker 默认最多保留 24 小时、每 partition 最多 512 MiB 的消息；128 MiB segment 让过期段能够及时删除。
+
 ## 1. 准备项目
 
 在 Mac 上登录：

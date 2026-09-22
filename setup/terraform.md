@@ -97,7 +97,7 @@ terraform apply
 | 数据湖 | 两个 ADLS Gen2 Storage Account：现有 Parquet 使用 `streamify`；Iceberg 账号包含 `streamify-iceberg` 表 container 和 `streamify-checkpoints` 流状态 container |
 | Snowflake | Terraform 不创建；在现有 AWS 账号中按 [Snowflake 初始化](../snowflake/README.md) 配置 |
 
-每台 VM 使用 Ubuntu 24.04 和 32 GiB Standard SSD 系统盘。
+Kafka VM 使用 Ubuntu 24.04 和 62 GiB Standard SSD 系统盘；其余四台 VM 使用 32 GiB。
 网络资源包括 Resource Group、VNet、Subnet、NSG、网卡和公网 IP。
 SSH 只允许 `admin_source_cidr` 指定的地址，VM 之间用私网 IP 通信。
 
@@ -131,7 +131,7 @@ azure://<account-name>.blob.core.windows.net/streamify/
 | 在 Portal 查看两个账号的数据 | 你的 Azure 用户，Storage Blob Data Reader，账号级作用域 | Terraform 创建 |
 | Spark 读写现有 `streamify` 容器 | VM Managed Identity，Storage Blob Data Contributor | Terraform 创建 |
 | Airflow 读取现有 `streamify` 容器 | VM Managed Identity，Storage Blob Data Reader | Terraform 创建 |
-| Polaris 访问 Iceberg 表 container | 独立 Azure Service Principal，`streamify-iceberg` 上的 Storage Blob Data Contributor | Terraform 根据 principal Object ID 创建 |
+| Polaris 为 Iceberg 表签发 ADLS SAS | 独立 Azure Service Principal，独立 Iceberg Storage Account 上的 Storage Blob Data Contributor | Terraform 根据 principal Object ID 创建 |
 | Spark 写 Iceberg checkpoint | VM Managed Identity，`streamify-checkpoints` 上的 Storage Blob Data Contributor | Terraform 创建 |
 | AWS Snowflake 读取 ADLS | Snowflake 对应的 Azure Service Principal | 按 [Snowflake 初始化](../snowflake/README.md) 授权 |
 

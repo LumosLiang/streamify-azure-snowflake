@@ -125,7 +125,7 @@ abfss://streamify@<storage-account-name>.dfs.core.windows.net/checkpoint/listen_
 
 `stream_listen_events_iceberg.py` 是一份独立的学习作业。它只处理 `listen_events`，不修改正在写 Parquet 的 `stream_all_events.py`。表文件由 Polaris 下发的短期 SAS 写入独立 Iceberg Storage Account；Spark 的 streaming checkpoint 则由 Spark VM 的 managed identity 写入该账号中独立的 `streamify-checkpoints` container。
 
-文件已定义 Kafka 读取、标准化、`streamify_raw.listen_events` 建表和 append-mode Iceberg 写入。代码尚未在新的 checkpoint container 上运行验证。
+文件已完成运行验证：它从 Kafka 消费 `listen_events`，在 Polaris 中创建 `streamify_raw.listen_events` 并以 append mode 写入 Iceberg；独立 checkpoint container 也已产生 streaming state。它仍与现有 Parquet 作业并行运行。
 
 在 Spark Master 的 `spark_streaming/` 目录创建组件运行配置：
 

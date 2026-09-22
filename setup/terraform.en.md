@@ -97,7 +97,7 @@ terraform apply
 | Data lake | Two ADLS Gen2 Storage Accounts: `streamify` for the existing Parquet path; the Iceberg account has a `streamify-iceberg` table container and a `streamify-checkpoints` streaming-state container |
 | Snowflake | Not created by Terraform; configure it in the existing AWS account using [Snowflake setup](../snowflake/README.en.md) |
 
-Each VM uses Ubuntu 24.04 and a 32 GiB Standard SSD OS disk.
+The Kafka VM uses Ubuntu 24.04 with a 62 GiB Standard SSD OS disk; the other four VMs use 32 GiB.
 Networking includes a resource group, VNet, subnet, NSG, network interfaces, and public IPs.
 SSH is restricted to `admin_source_cidr`. VMs communicate through private IPs.
 
@@ -131,7 +131,7 @@ This configuration does not clean up data automatically; checkpoints must remain
 | Inspect data in both accounts in the portal | Your Azure user, Storage Blob Data Reader at account scope | Created by Terraform |
 | Spark reads and writes the existing `streamify` container | VM managed identity, Storage Blob Data Contributor | Created by Terraform |
 | Airflow reads the existing `streamify` container | VM managed identity, Storage Blob Data Reader | Created by Terraform |
-| Polaris accesses the Iceberg table container | Separate Azure service principal, Storage Blob Data Contributor on `streamify-iceberg` | Created by Terraform from the principal Object ID |
+| Polaris issues ADLS SAS for Iceberg tables | Separate Azure service principal, Storage Blob Data Contributor on the dedicated Iceberg Storage Account | Created by Terraform from the principal Object ID |
 | Spark writes Iceberg checkpoints | VM managed identity, Storage Blob Data Contributor on `streamify-checkpoints` | Created by Terraform |
 | AWS Snowflake reads ADLS | An Azure service principal associated with Snowflake | Authorized using [Snowflake setup](../snowflake/README.en.md) |
 

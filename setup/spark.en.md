@@ -119,11 +119,11 @@ abfss://streamify@<storage-account-name>.dfs.core.windows.net/listen_events/
 abfss://streamify@<storage-account-name>.dfs.core.windows.net/checkpoint/listen_events/
 ```
 
-## 6. Write the first real Iceberg table in parallel
+## 6. Submit a streaming job to Iceberg
 
-`stream_listen_events_iceberg.py` is an independent learning job. It handles only `listen_events` and does not modify `stream_all_events.py`, which continues to write Parquet. Polaris vends short-lived SAS credentials for table files in the separate Iceberg Storage Account. Spark's streaming checkpoint is written by the Spark VM managed identity to the separate `streamify-checkpoints` container in that account.
+`stream_listen_events_iceberg.py` consumes `listen_events` and writes to `streamify_raw.listen_events`. Polaris vends short-lived SAS credentials for table files. The Spark VM managed identity writes checkpoints to the separate `streamify-checkpoints` container in the same account.
 
-The file has been runtime-validated: it consumes Kafka `listen_events`, creates `streamify_raw.listen_events` in Polaris, and writes to Iceberg in append mode; the separate checkpoint container also contains streaming state. It continues to run in parallel with the existing Parquet job.
+The job has been runtime-validated: Kafka micro-batches have committed to Iceberg, and the checkpoint container contains streaming state. The existing Parquet streaming job is unchanged.
 
 Create the component runtime configuration from `spark_streaming/` on the Spark Master:
 
@@ -132,14 +132,26 @@ mkdir -p "$HOME/.config/streamify"
 cp spark-iceberg.env.example "$HOME/.config/streamify/spark-iceberg.env"
 ```
 
-Edit `~/.config/streamify/spark-iceberg.env` and replace each `<...>` value with the current Spark master, Kafka, Polaris, and Iceberg checkpoint values. This file keeps Spark, Kafka, Polaris, and Iceberg runtime settings together. Each later session needs only one load:
+Edit `~/.config/streamify/spark-iceberg.env` and replace each `<...>` value with the current Spark master, Kafka, Polaris principal, catalog, and Iceberg checkpoint values. This file keeps all runtime settings for this job together. Each later session needs only one load:
 
 ```bash
-source "$HOME/.spark_env"
 source "$HOME/.config/streamify/spark-iceberg.env"
 ```
 
-The Polaris catalog determines the Iceberg table location. A checkpoint is not part of an Iceberg table, so `ICEBERG_CHECKPOINT_STORAGE_ACCOUNT` and `ICEBERG_CHECKPOINT_CONTAINER` specify it separately. It lives in a separate container in the same new Storage Account and is outside Iceberg table maintenance.
+The fields have these roles:
+
+| Field | Role |
+| --- | --- |
+| `source "$HOME/.spark_env"` | Loads Java, `SPARK_HOME`, and `PATH` configured during Spark installation. |
+| `SPARK_MASTER_URL` | Points to the standalone Spark Master, which schedules the driver and executors. |
+| `KAFKA_ADDRESS` | The Kafka VM private address used to connect to the `listen_events` topic. |
+| `POLARIS_SPARK_CLIENT_ID` / `POLARIS_SPARK_CLIENT_SECRET` | OAuth credentials for the Spark principal to authenticate to Polaris; these are not the Azure storage service-principal credentials. |
+| `POLARIS_CATALOG_NAME` | The Azure catalog name in Polaris, which determines the Iceberg table Storage Account, container, and base path. |
+| `ICEBERG_CHECKPOINT_STORAGE_ACCOUNT` | The ADLS Storage Account for Structured Streaming checkpoints, written by the Spark VM managed identity and not part of the Iceberg table. |
+
+`build_streaming_config()` in `iceberg_config.py` reads these environment variables once and constructs `StreamingConfig`. The main job passes that explicit configuration object to the Spark session, Kafka reader, table creation, and writer, which do not read environment variables internally.
+
+`ICEBERG_NAMESPACE`, `ICEBERG_TABLE`, and `ICEBERG_CHECKPOINT_CONTAINER` use the code defaults `streamify_raw`, `listen_events`, and `streamify-checkpoints`, so they do not need entries in the configuration file. The Polaris catalog determines the Iceberg table location. A checkpoint is not part of an Iceberg table; it lives in a separate container and is outside Iceberg table maintenance.
 
 Submit the job with:
 

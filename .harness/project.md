@@ -45,7 +45,8 @@ are not yet part of the dimensional model.
 
 ## Runtime topology and identities
 
-- Kafka VM: Kafka and Eventsim Docker containers.
+- Kafka VM: Kafka runs through Compose; Eventsim is created manually by
+  `scripts/eventsim_startup.sh` and has no restart policy.
 - Airflow VM: Airflow Docker Compose stack; dbt is installed in the custom
   Airflow image and the repository `dbt/` directory is mounted into containers.
 - Spark master and two workers: Spark 4.1.3 installed directly on Ubuntu 24.04.

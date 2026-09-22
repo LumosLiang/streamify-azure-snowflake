@@ -121,27 +121,39 @@ abfss://streamify@<storage-account-name>.dfs.core.windows.net/listen_events/
 abfss://streamify@<storage-account-name>.dfs.core.windows.net/checkpoint/listen_events/
 ```
 
-### 6. 并行写入第一张真实 Iceberg 表
+### 6. 向 Iceberg 提交流处理作业
 
-`stream_listen_events_iceberg.py` 是一份独立的学习作业。它只处理 `listen_events`，不修改正在写 Parquet 的 `stream_all_events.py`。表文件由 Polaris 下发的短期 SAS 写入独立 Iceberg Storage Account；Spark 的 streaming checkpoint 则由 Spark VM 的 managed identity 写入该账号中独立的 `streamify-checkpoints` container。
+`stream_listen_events_iceberg.py` 消费 `listen_events`，并写入 `streamify_raw.listen_events`。Polaris 为表文件下发短期 SAS；Spark VM 的 managed identity 则向同一账号中独立的 `streamify-checkpoints` container 写入 checkpoint。
 
-文件已完成运行验证：它从 Kafka 消费 `listen_events`，在 Polaris 中创建 `streamify_raw.listen_events` 并以 append mode 写入 Iceberg；独立 checkpoint container 也已产生 streaming state。它仍与现有 Parquet 作业并行运行。
+作业已完成运行验证：Kafka micro-batch 已提交到 Iceberg，checkpoint container 也已写入状态文件。现有 Parquet 流作业保持不变。
 
-在 Spark Master 的 `spark_streaming/` 目录创建组件运行配置：
+在 Spark Master 的 `spark_streaming/` 目录创建组件配置：
 
 ```bash
 mkdir -p "$HOME/.config/streamify"
 cp spark-iceberg.env.example "$HOME/.config/streamify/spark-iceberg.env"
 ```
 
-编辑 `~/.config/streamify/spark-iceberg.env`，将其中的 `<...>` 替换为当前 Spark master、Kafka、Polaris 和 Iceberg checkpoint 的值。文件将 Spark、Kafka、Polaris 和 Iceberg 的运行参数放在一起；之后每次只需加载一次：
+将其中的 `<...>` 替换为当前值。此文件统一保存 Spark、Kafka、Polaris principal、catalog 和 checkpoint 参数；每次提交前只需加载一次：
 
 ```bash
-source "$HOME/.spark_env"
 source "$HOME/.config/streamify/spark-iceberg.env"
 ```
 
-Iceberg 表路径由 Polaris catalog 决定。checkpoint 不属于 Iceberg 表，因此通过 `ICEBERG_CHECKPOINT_STORAGE_ACCOUNT` 和 `ICEBERG_CHECKPOINT_CONTAINER` 单独指定；它位于同一新 Storage Account 的独立 container，不会被 Iceberg 表维护操作处理。
+各字段的作用如下：
+
+| 字段 | 作用 |
+| --- | --- |
+| `source "$HOME/.spark_env"` | 加载 Spark 安装时已配置的 Java、`SPARK_HOME` 和 `PATH`。 |
+| `SPARK_MASTER_URL` | 指向 standalone Spark Master，`spark-submit` 据此把 driver 和 executors 调度到集群。 |
+| `KAFKA_ADDRESS` | Kafka VM 的私网地址；作业通过它连接 `listen_events` topic。 |
+| `POLARIS_SPARK_CLIENT_ID` / `POLARIS_SPARK_CLIENT_SECRET` | Spark principal 的 OAuth 凭据，用于向 Polaris 登录；不是 Azure storage service principal。 |
+| `POLARIS_CATALOG_NAME` | Polaris 中 Azure catalog 的名称，决定 Iceberg 表所在的 Storage Account、container 和根路径。 |
+| `ICEBERG_CHECKPOINT_STORAGE_ACCOUNT` | Structured Streaming checkpoint 所在的 ADLS Storage Account，由 Spark VM managed identity 写入，不属于 Iceberg 表。 |
+
+`iceberg_config.py` 中的 `build_streaming_config()` 只读取一次这些环境变量，并构造 `StreamingConfig`。主作业把这个显式配置对象传给 Spark session、Kafka reader、建表和 writer；这些函数不在内部读取环境变量。
+
+`ICEBERG_NAMESPACE`、`ICEBERG_TABLE` 和 `ICEBERG_CHECKPOINT_CONTAINER` 使用代码默认值 `streamify_raw`、`listen_events` 和 `streamify-checkpoints`，因此不必写入配置文件。Iceberg 表路径由 Polaris catalog 决定；checkpoint 不属于 Iceberg 表，位于独立 container，不会被 Iceberg 表维护操作处理。
 
 提交命令为：
 
@@ -152,7 +164,7 @@ spark-submit \
   stream_listen_events_iceberg.py
 ```
 
-`create_kafka_read_stream()` 使用 `earliest`。因此新 checkpoint 首次启动时会处理 Kafka 中仍保留的旧消息。Iceberg 的 Structured Streaming 写入使用 `DataStreamWriter.toTable()`，表必须先创建。参考：[Iceberg Structured Streaming](https://iceberg.apache.org/docs/latest/spark-structured-streaming/)。
+`create_kafka_read_stream()` 默认从 `earliest` 读取。新 checkpoint 首次启动时会处理 Kafka 仍保留的旧消息。Iceberg 的 Structured Streaming 写入使用 `DataStreamWriter.toTable()`，表必须先创建。参考：[Iceberg Structured Streaming](https://iceberg.apache.org/docs/latest/spark-structured-streaming/)。
 
 ### 7. 停止集群
 

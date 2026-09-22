@@ -20,6 +20,8 @@ Review the diff for:
 - a changed Chinese setup/README without its English counterpart.
 - generic personal reminders about committing `.env`, credentials, or command
   output that belong in `AGENTS.md` rather than project-facing documentation.
+- a changed runtime variable, default, or configuration reader whose
+  `*.env.example`, bilingual setup guide, or startup/submit consumer is stale.
 
 Do not print `terraform.tfvars`, `.env`, state files, private keys, or live account
 configuration during this review.

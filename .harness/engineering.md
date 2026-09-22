@@ -18,6 +18,18 @@ A configuration change is incomplete if a direct consumer still uses the old
 contract. Avoid copying the same configuration into more places when an existing
 environment variable or canonical file can remain the source.
 
+For a component with several runtime values, use one local component environment
+file with placeholders in its tracked example. It may source the generic Spark
+environment when needed. Document one `source` command for the component rather
+than a sequence of ad hoc exports.
+
+Treat each runtime variable as a cross-component contract. When adding,
+removing, renaming, or defaulting one, review and align all of these before
+finishing: the code that reads it, the tracked `*.env.example`, the Chinese and
+English setup guides, submit or startup commands, and direct consumers. Remove
+an example entry when code has a stable project default; do not leave redundant
+variables simply because an existing local environment file still accepts them.
+
 ## Terraform
 
 - Keep Azure resources in `terraform/main.tf` and inputs in `variables.tf`;
@@ -54,6 +66,8 @@ environment variable or canonical file can remain the source.
   volumes exist. State the data-loss implication before a recreate.
 - Use `restart: unless-stopped` only for services intended to return after a VM
   restart; it does not start manually launched host processes or `spark-submit`.
+- Describe Eventsim as manually started unless `scripts/eventsim_startup.sh`
+  itself adds a restart policy or a host supervisor is configured.
 - Keep `.env.example` values as placeholders and required-variable expressions
   explicit where startup without a value would be invalid.
 
@@ -110,3 +124,5 @@ environment variable or canonical file can remain the source.
 - Keep current architecture separate from historical screenshots and future work.
 - Update `.md` and `.en.md` pairs together while allowing natural phrasing rather
   than mechanical translation.
+- Remove a completed TODO or replace it with observed behavior; do not retain it
+  as a historical note in project-facing setup documentation.

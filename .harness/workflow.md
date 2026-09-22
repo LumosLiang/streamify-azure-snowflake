@@ -48,6 +48,10 @@ just to appear thorough.
 
 - Patch the minimum coherent set. A coherent change may include code plus its
   canonical bilingual documentation.
+- When executable code changes a documented component's configuration boundary,
+  data flow, runtime behavior, or operator workflow, update its canonical
+  documentation in the same change. Inspect that guide before deciding no
+  documentation update is needed.
 - Preserve user-written learning files and incomplete exercises. Review them when
   asked; do not finish, relocate, or rename them automatically.
 - Preserve upstream attribution and Git history.
@@ -58,6 +62,21 @@ just to appear thorough.
   to choose it.
 - Do not repair an unrelated bug discovered during scoped work. Report it briefly
   if it materially affects the requested change.
+
+## Documentation and runtime configuration
+
+- Describe the current operation, not the agent's learning intent. Do not label
+  a working path an "exercise" or "learning job" unless the user explicitly
+  asks for an exercise.
+- When a task becomes runtime verified, remove or update its old TODO, deferred,
+  and unverified wording in the same documentation change.
+- Keep adjacent setup headings parallel and action-oriented, for example
+  "Submit a streaming job" rather than a narrative description of the result.
+- Store runtime values by component in one local configuration file. The command
+  path should load that file once; do not make users repeatedly export the same
+  values in setup instructions.
+- State whether a process is manually started, container-restarted, or supervised
+  by a host service from the executable configuration. Do not imply autostart.
 
 ## User-run operations
 

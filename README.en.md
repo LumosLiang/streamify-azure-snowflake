@@ -16,7 +16,7 @@ Eventsim → Kafka → Spark Structured Streaming → ADLS Gen2 (Parquet)
 
 Terraform creates five Azure VMs, networking, and ADLS Gen2: one VM runs Kafka and Eventsim containers, one runs Airflow containers, and three run open-source Spark installed directly on the VMs as a standalone master and two workers. Snowflake runs on AWS and reads Parquet from ADLS through an Azure storage integration. Airflow runs `COPY INTO` and dbt hourly. The current core dbt models mainly use listening events; page-view and authentication events are loaded but are not yet used by those models. This project does not deploy a BI dashboard.
 
-Polaris has been validated with one Iceberg table created through Spark SQL in a separate ADLS Gen2 Storage Account. It is not yet part of the streaming path above.
+Polaris has been validated with one Iceberg table created through Spark SQL and now receives a parallel `listen_events` streaming write path. The existing Parquet path is unchanged.
 
 Eventsim uses the [10,000-song subset of the Million Song Dataset](http://millionsongdataset.com/pages/getting-dataset/#subset). Its Docker build comes from [viirya's fork](https://github.com/viirya/eventsim).
 

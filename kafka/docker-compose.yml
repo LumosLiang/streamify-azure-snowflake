@@ -27,6 +27,8 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # Match the four Spark worker cores for new auto-created event topics.
+      KAFKA_NUM_PARTITIONS: 4
       # Keep this learning broker bounded even when Eventsim runs continuously.
       KAFKA_LOG_RETENTION_HOURS: 24
       KAFKA_LOG_RETENTION_BYTES: 536870912

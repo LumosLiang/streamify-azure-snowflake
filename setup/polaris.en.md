@@ -102,6 +102,34 @@ The script also enables namespace custom locations for the catalog. Spark places
 
 It does not create a namespace or Iceberg table. If the catalog already exists, the script exits without overwriting its configuration.
 
+### View catalogs
+
+The current deployment has no Polaris UI. To inspect catalogs, use the Polaris CLI from the `polaris/` directory on the Spark Master. Load the root principal in `.env`, then list all catalogs:
+
+```bash
+set -a
+source .env
+set +a
+
+"$HOME/.local/bin/polaris" \
+  --host 127.0.0.1 \
+  --port 8181 \
+  --client-id "$POLARIS_CLIENT_ID" \
+  --client-secret "$POLARIS_CLIENT_SECRET" \
+  catalogs list
+```
+
+To inspect one catalog's Azure location and `hierarchical` setting:
+
+```bash
+"$HOME/.local/bin/polaris" \
+  --host 127.0.0.1 \
+  --port 8181 \
+  --client-id "$POLARIS_CLIENT_ID" \
+  --client-secret "$POLARIS_CLIENT_SECRET" \
+  catalogs get <catalog-name>
+```
+
 ## 6. Create the Spark principal
 
 Spark does not use the Polaris root principal. It needs its own principal, principal role, and catalog role. The script connects them and grants `CATALOG_MANAGE_CONTENT` on this catalog, which permits creating, reading, and writing tables.

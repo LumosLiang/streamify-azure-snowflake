@@ -166,6 +166,16 @@ spark-submit \
 
 `create_kafka_read_stream()` 默认从 `earliest` 读取。新 checkpoint 首次启动时会处理 Kafka 仍保留的旧消息。Iceberg 的 Structured Streaming 写入使用 `DataStreamWriter.toTable()`，表必须先创建。参考：[Iceberg Structured Streaming](https://iceberg.apache.org/docs/latest/spark-structured-streaming/)。
 
+### 停止 Iceberg 流作业
+
+前台运行 `spark-submit` 时按 `Ctrl-C`。若作业以后台方式启动并将 PID 写入 `~/streamify-iceberg-writer.pid`，执行：
+
+```bash
+kill "$(cat "$HOME/streamify-iceberg-writer.pid")"
+```
+
+不要删除 checkpoint。下次以相同 checkpoint 路径启动时，Spark 会从已提交的 Kafka offset 继续。
+
 ### 7. 停止集群
 
 在 master 上停止 master，在每个 worker 上停止 worker：

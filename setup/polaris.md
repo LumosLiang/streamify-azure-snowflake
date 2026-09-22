@@ -102,6 +102,34 @@ abfss://streamify-iceberg@<storage-account-name>.dfs.core.windows.net/lake/
 
 这一步不创建 namespace 或 Iceberg 表。若 catalog 已存在，脚本会退出，不会覆盖现有配置。
 
+### 查看 catalog
+
+当前部署没有 Polaris UI。需要查看 catalog 时，在 Spark Master 的 `polaris/` 目录使用 Polaris CLI。先加载 `.env` 中的 root principal，再列出所有 catalog：
+
+```bash
+set -a
+source .env
+set +a
+
+"$HOME/.local/bin/polaris" \
+  --host 127.0.0.1 \
+  --port 8181 \
+  --client-id "$POLARIS_CLIENT_ID" \
+  --client-secret "$POLARIS_CLIENT_SECRET" \
+  catalogs list
+```
+
+查看某一个 catalog 的 Azure 路径和 `hierarchical` 设置：
+
+```bash
+"$HOME/.local/bin/polaris" \
+  --host 127.0.0.1 \
+  --port 8181 \
+  --client-id "$POLARIS_CLIENT_ID" \
+  --client-secret "$POLARIS_CLIENT_SECRET" \
+  catalogs get <catalog-name>
+```
+
 ## 6. 创建 Spark principal
 
 Spark 不使用 Polaris root principal。它需要自己的 principal、principal role 和 catalog role；脚本把三者关联，并为该 catalog 授予 `CATALOG_MANAGE_CONTENT`，即建表、读取和写入权限。

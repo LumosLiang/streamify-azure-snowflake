@@ -53,6 +53,20 @@ docker compose -f kafka/docker-compose.yml exec broker \
 
 Kafka Control Center 的访问方法见 [SSH 端口转发](ssh.md)。
 
+### Topic 并行度
+
+事件 topic 默认使用 4 个 partition，与当前 Spark 集群的 4 个 worker core 对齐。一个 partition 在单个 micro-batch 中只能由一个 Kafka 读取 task 消费；增加 Spark Worker 前，应先增加对应 topic 的 partition。
+
+已存在的 topic 不会因 `KAFKA_NUM_PARTITIONS` 自动改变。在线扩容 `listen_events` 时执行：
+
+```bash
+docker compose -f kafka/docker-compose.yml exec broker \
+  kafka-topics --bootstrap-server broker:29092 \
+  --alter --topic listen_events --partitions 4
+```
+
+该操作保留已有数据，但 partition 数只能增加，不能减少。新消息会写入新 partition；如果需要按用户保持顺序，生产端应使用用户标识作为 Kafka key。
+
 ## 4. 启动 Eventsim
 
 ```bash

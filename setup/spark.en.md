@@ -164,6 +164,16 @@ spark-submit \
 
 `create_kafka_read_stream()` uses `earliest`, so the first run with a new checkpoint will process Kafka messages that are still retained. Iceberg Structured Streaming writes use `DataStreamWriter.toTable()`, and the table must exist first. See [Iceberg Structured Streaming](https://iceberg.apache.org/docs/latest/spark-structured-streaming/).
 
+### Stop the Iceberg streaming job
+
+For a foreground `spark-submit`, press `Ctrl-C`. If the job was started in the background and its PID was written to `~/streamify-iceberg-writer.pid`, run:
+
+```bash
+kill "$(cat "$HOME/streamify-iceberg-writer.pid")"
+```
+
+Do not delete the checkpoint. The next start with the same checkpoint path resumes from the committed Kafka offset.
+
 ## 7. Stop the cluster
 
 On the master, stop the master process. On each worker, stop its worker process:

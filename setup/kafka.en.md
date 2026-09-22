@@ -53,6 +53,20 @@ docker compose -f kafka/docker-compose.yml exec broker \
 
 See [SSH port forwarding](ssh.en.md) to open Kafka Control Center.
 
+### Topic parallelism
+
+New event topics default to four partitions, matching the four Spark worker cores in the current cluster. A Kafka partition can be read by only one task in a micro-batch; increase the relevant topic's partition count before adding Spark Workers for more throughput.
+
+Existing topics are not changed automatically by `KAFKA_NUM_PARTITIONS`. To expand `listen_events` online, run:
+
+```bash
+docker compose -f kafka/docker-compose.yml exec broker \
+  kafka-topics --bootstrap-server broker:29092 \
+  --alter --topic listen_events --partitions 4
+```
+
+This retains existing data, but partition count can only increase. New records can use the added partitions; when per-user ordering matters, the producer should use a user identifier as the Kafka key.
+
 ## 4. Start Eventsim
 
 ```bash

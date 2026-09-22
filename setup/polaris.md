@@ -141,21 +141,22 @@ bash create_spark_principal.sh \
 spark_client → spark_principal_role → spark_catalog_role → CATALOG_MANAGE_CONTENT
 ```
 
-脚本先确认 catalog 存在，并拒绝覆盖同名 principal 或角色。成功时会打印下一步需要的 `clientId` 和 `clientSecret`。将它们填入 Spark Master 本地的 `~/.config/streamify/spark-iceberg.env`；创建该文件的方法见 [Spark 配置](spark.md#6-并行写入第一张真实-iceberg-表)：
+脚本先确认 catalog 存在，并拒绝覆盖同名 principal 或角色。成功时会打印下一步需要的 `clientId` 和 `clientSecret`。在 Spark Master 将它们持久化到 `~/.polaris_spark.env`：
 
 ```bash
+cat > "$HOME/.polaris_spark.env" <<'EOF'
 export POLARIS_SPARK_CLIENT_ID=<clientId>
 export POLARIS_SPARK_CLIENT_SECRET=<clientSecret>
+EOF
 ```
 
-这个文件只用于 Spark client；`polaris/.env` 仍只配置 Polaris 服务及其 Azure 存储身份。
+这个文件保存所有 Spark 客户端共用的 Polaris principal；`spark-iceberg.env` 会加载它。`polaris/.env` 仍只配置 Polaris 服务及其 Azure 存储身份。
 
 ## 7. 用 Spark SQL 验证第一张 Iceberg 表
 
 在 Spark Master 的 `polaris/` 目录，先加载 Spark 环境变量和 Spark principal 凭据：
 
 ```bash
-source "$HOME/.spark_env"
 source "$HOME/.config/streamify/spark-iceberg.env"
 ```
 

@@ -51,17 +51,17 @@ Spark Web UI 默认监听 master 的 `8080`；通过 SSH 转发到本机 `8082` 
 
 ### 3. 配置连接信息
 
-在 master 上进入流处理目录并设置：
+在 master 的 `spark_streaming/` 目录创建 Parquet 作业配置：
 
 ```bash
-cd ~/streamify-azure-snowflake/spark_streaming
-export SPARK_MASTER_URL="spark://<spark-master-private-ip>:7077"
-export KAFKA_ADDRESS="<kafka-private-ip>"
-export AZURE_STORAGE_ACCOUNT="<storage-account-name>"
-export AZURE_STORAGE_CONTAINER="streamify"
+mkdir -p "$HOME/.config/streamify"
+cp spark-parquet.env.example "$HOME/.config/streamify/spark-parquet.env"
+source "$HOME/.config/streamify/spark-parquet.env"
 ```
 
-这里使用 Spark master 和 Kafka VM 的私网 IP。同一 VNet 内的 VM 可以通过私网通信。
+将其中的 `<...>` 替换为当前值。`SPARK_MASTER_URL` 供 `spark-submit` 调度作业，`KAFKA_ADDRESS` 供作业读取 topics，`AZURE_STORAGE_ACCOUNT` 指向现有 Parquet 数据湖。`stream_all_events.py` 默认使用 `streamify` container，所以不需要配置 `AZURE_STORAGE_CONTAINER`。
+
+之后每次运行 Parquet 作业前只需加载一次这个文件。Spark master 和 Kafka VM 使用私网地址；同一 VNet 内的 VM 可以通过私网通信。
 
 Terraform 已向三台 Spark VM 的 managed identity 授予容器级 `Storage Blob Data Contributor`
 权限。作业通过 ABFS 和 VM 身份写入 ADLS，不需要 Azure 密钥。
@@ -134,7 +134,7 @@ mkdir -p "$HOME/.config/streamify"
 cp spark-iceberg.env.example "$HOME/.config/streamify/spark-iceberg.env"
 ```
 
-将其中的 `<...>` 替换为当前值。此文件统一保存 Spark、Kafka、Polaris principal、catalog 和 checkpoint 参数；每次提交前只需加载一次：
+将其中的 `<...>` 替换为当前值。此文件统一保存 Spark、Kafka、Polaris catalog 和 checkpoint 参数，并加载持久化的 Spark principal；每次提交前只需加载一次：
 
 ```bash
 source "$HOME/.config/streamify/spark-iceberg.env"
@@ -145,9 +145,9 @@ source "$HOME/.config/streamify/spark-iceberg.env"
 | 字段 | 作用 |
 | --- | --- |
 | `source "$HOME/.spark_env"` | 加载 Spark 安装时已配置的 Java、`SPARK_HOME` 和 `PATH`。 |
+| `source "$HOME/.polaris_spark.env"` | 加载 Spark principal 的 OAuth 凭据 `POLARIS_SPARK_CLIENT_ID` 和 `POLARIS_SPARK_CLIENT_SECRET`。 |
 | `SPARK_MASTER_URL` | 指向 standalone Spark Master，`spark-submit` 据此把 driver 和 executors 调度到集群。 |
 | `KAFKA_ADDRESS` | Kafka VM 的私网地址；作业通过它连接 `listen_events` topic。 |
-| `POLARIS_SPARK_CLIENT_ID` / `POLARIS_SPARK_CLIENT_SECRET` | Spark principal 的 OAuth 凭据，用于向 Polaris 登录；不是 Azure storage service principal。 |
 | `POLARIS_CATALOG_NAME` | Polaris 中 Azure catalog 的名称，决定 Iceberg 表所在的 Storage Account、container 和根路径。 |
 | `ICEBERG_CHECKPOINT_STORAGE_ACCOUNT` | Structured Streaming checkpoint 所在的 ADLS Storage Account，由 Spark VM managed identity 写入，不属于 Iceberg 表。 |
 

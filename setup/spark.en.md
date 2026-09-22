@@ -50,17 +50,17 @@ The Spark Web UI listens on the master's port `8080` by default. See the [SSH gu
 
 ## 3. Configure connection settings
 
-On the master, enter the streaming directory and set:
+Create the Parquet job configuration from `spark_streaming/` on the master:
 
 ```bash
-cd ~/streamify-azure-snowflake/spark_streaming
-export SPARK_MASTER_URL="spark://<spark-master-private-ip>:7077"
-export KAFKA_ADDRESS="<kafka-private-ip>"
-export AZURE_STORAGE_ACCOUNT="<storage-account-name>"
-export AZURE_STORAGE_CONTAINER="streamify"
+mkdir -p "$HOME/.config/streamify"
+cp spark-parquet.env.example "$HOME/.config/streamify/spark-parquet.env"
+source "$HOME/.config/streamify/spark-parquet.env"
 ```
 
-Use the private IPs of the Spark master and Kafka VM. VMs in the same VNet can communicate over their private addresses.
+Replace each `<...>` value with the current values. `SPARK_MASTER_URL` schedules the job through `spark-submit`, `KAFKA_ADDRESS` reads the topics, and `AZURE_STORAGE_ACCOUNT` identifies the existing Parquet data lake. `stream_all_events.py` defaults to the `streamify` container, so `AZURE_STORAGE_CONTAINER` is unnecessary.
+
+Each later Parquet submission needs only one load of this file. The Spark master and Kafka VM use private addresses; VMs in the same VNet can communicate over them.
 
 Terraform grants the managed identities of all three Spark VMs the `Storage Blob Data Contributor` role on the container. The job uses ABFS and the VM identities to write to ADLS, so no Azure key is required.
 
@@ -132,7 +132,7 @@ mkdir -p "$HOME/.config/streamify"
 cp spark-iceberg.env.example "$HOME/.config/streamify/spark-iceberg.env"
 ```
 
-Edit `~/.config/streamify/spark-iceberg.env` and replace each `<...>` value with the current Spark master, Kafka, Polaris principal, catalog, and Iceberg checkpoint values. This file keeps all runtime settings for this job together. Each later session needs only one load:
+Edit `~/.config/streamify/spark-iceberg.env` and replace each `<...>` value with the current Spark master, Kafka, Polaris catalog, and Iceberg checkpoint values. This file keeps the job runtime settings together and loads the persisted Spark principal. Each later session needs only one load:
 
 ```bash
 source "$HOME/.config/streamify/spark-iceberg.env"
@@ -143,9 +143,9 @@ The fields have these roles:
 | Field | Role |
 | --- | --- |
 | `source "$HOME/.spark_env"` | Loads Java, `SPARK_HOME`, and `PATH` configured during Spark installation. |
+| `source "$HOME/.polaris_spark.env"` | Loads the Spark principal OAuth credentials: `POLARIS_SPARK_CLIENT_ID` and `POLARIS_SPARK_CLIENT_SECRET`. |
 | `SPARK_MASTER_URL` | Points to the standalone Spark Master, which schedules the driver and executors. |
 | `KAFKA_ADDRESS` | The Kafka VM private address used to connect to the `listen_events` topic. |
-| `POLARIS_SPARK_CLIENT_ID` / `POLARIS_SPARK_CLIENT_SECRET` | OAuth credentials for the Spark principal to authenticate to Polaris; these are not the Azure storage service-principal credentials. |
 | `POLARIS_CATALOG_NAME` | The Azure catalog name in Polaris, which determines the Iceberg table Storage Account, container, and base path. |
 | `ICEBERG_CHECKPOINT_STORAGE_ACCOUNT` | The ADLS Storage Account for Structured Streaming checkpoints, written by the Spark VM managed identity and not part of the Iceberg table. |
 

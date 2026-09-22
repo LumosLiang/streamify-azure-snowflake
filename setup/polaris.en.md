@@ -141,21 +141,22 @@ The first argument must be an existing Polaris catalog. The remaining three are 
 spark_client → spark_principal_role → spark_catalog_role → CATALOG_MANAGE_CONTENT
 ```
 
-The script first checks that the catalog exists and refuses to overwrite a principal or role with the same name. On success, it prints the `clientId` and `clientSecret` needed in the next step. Put them in `~/.config/streamify/spark-iceberg.env` on the Spark Master; see [Spark setup](spark.en.md#6-write-the-first-real-iceberg-table-in-parallel) for creating that file:
+The script first checks that the catalog exists and refuses to overwrite a principal or role with the same name. On success, it prints the `clientId` and `clientSecret` needed in the next step. Persist them on the Spark Master in `~/.polaris_spark.env`:
 
 ```bash
+cat > "$HOME/.polaris_spark.env" <<'EOF'
 export POLARIS_SPARK_CLIENT_ID=<clientId>
 export POLARIS_SPARK_CLIENT_SECRET=<clientSecret>
+EOF
 ```
 
-This file is for the Spark client only. `polaris/.env` continues to configure the Polaris service and its Azure storage identity.
+This file holds the Polaris principal shared by Spark clients; `spark-iceberg.env` loads it. `polaris/.env` continues to configure the Polaris service and its Azure storage identity.
 
 ## 7. Validate the first Iceberg table with Spark SQL
 
 In the `polaris/` directory on the Spark Master, load the Spark environment and Spark principal credentials:
 
 ```bash
-source "$HOME/.spark_env"
 source "$HOME/.config/streamify/spark-iceberg.env"
 ```
 

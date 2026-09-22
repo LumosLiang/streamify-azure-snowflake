@@ -170,8 +170,16 @@ resource "azurerm_storage_container" "iceberg" {
   container_access_type = "private"
 }
 
+# Spark Structured Streaming state is kept outside the Polaris-managed table
+# container so that checkpoint and Iceberg table lifecycles remain independent.
+resource "azurerm_storage_container" "iceberg_checkpoints" {
+  name                  = "streamify-checkpoints"
+  storage_account_id    = azurerm_storage_account.iceberg.id
+  container_access_type = "private"
+}
+
 resource "azurerm_role_assignment" "polaris_iceberg_storage" {
-  scope                = azurerm_storage_account.iceberg.id
+  scope                = azurerm_storage_container.iceberg.id
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = var.polaris_service_principal_object_id
   principal_type       = "ServicePrincipal"
@@ -181,6 +189,13 @@ resource "azurerm_role_assignment" "polaris_iceberg_storage" {
 resource "azurerm_role_assignment" "spark_storage" {
   for_each             = toset(["spark-master", "spark-worker-1", "spark-worker-2"])
   scope                = azurerm_storage_container.lake.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_linux_virtual_machine.vm[each.key].identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "spark_iceberg_checkpoint_storage" {
+  for_each             = toset(["spark-master", "spark-worker-1", "spark-worker-2"])
+  scope                = azurerm_storage_container.iceberg_checkpoints.id
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = azurerm_linux_virtual_machine.vm[each.key].identity[0].principal_id
 }

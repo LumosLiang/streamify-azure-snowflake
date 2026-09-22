@@ -94,7 +94,7 @@ terraform apply
 | Kafka VM | One D4as v5: 4 vCPUs, 16 GiB |
 | Airflow VM | One E2as v5: 2 vCPUs, 16 GiB |
 | Spark master and two workers | Three D2as v5 VMs: 2 vCPUs and 8 GiB each; install Spark separately |
-| Data lake | Two ADLS Gen2 Storage Accounts: `streamify` for the existing Parquet path and a separate `streamify-iceberg` account |
+| Data lake | Two ADLS Gen2 Storage Accounts: `streamify` for the existing Parquet path; the Iceberg account has a `streamify-iceberg` table container and a `streamify-checkpoints` streaming-state container |
 | Snowflake | Not created by Terraform; configure it in the existing AWS account using [Snowflake setup](../snowflake/README.en.md) |
 
 Each VM uses Ubuntu 24.04 and a 32 GiB Standard SSD OS disk.
@@ -111,7 +111,7 @@ abfss://streamify@<account-name>.dfs.core.windows.net/<event-type>/
 abfss://streamify@<account-name>.dfs.core.windows.net/checkpoint/<event-type>/
 ```
 
-`streamify-iceberg` is in a separate HNS-enabled Storage Account. Its account name is derived from the subscription ID hash and avoids service keywords that trigger an [Azure SDK endpoint parsing issue](../polaris/azure-directory-sas-account-name-bug.en.md). It does not change the existing Parquet write path.
+`streamify-iceberg` and `streamify-checkpoints` are in a separate HNS-enabled Storage Account. Polaris manages Iceberg table data and metadata only in the former; the latter stores Spark Structured Streaming checkpoints only. Its account name is derived from the subscription ID hash and avoids service keywords that trigger an [Azure SDK endpoint parsing issue](../polaris/azure-directory-sas-account-name-bug.en.md). It does not change the existing Parquet write path.
 
 The corresponding Snowflake external stage URL is:
 
@@ -131,7 +131,8 @@ This configuration does not clean up data automatically; checkpoints must remain
 | Inspect data in both accounts in the portal | Your Azure user, Storage Blob Data Reader at account scope | Created by Terraform |
 | Spark reads and writes the existing `streamify` container | VM managed identity, Storage Blob Data Contributor | Created by Terraform |
 | Airflow reads the existing `streamify` container | VM managed identity, Storage Blob Data Reader | Created by Terraform |
-| Polaris accesses the Iceberg account | Separate Azure service principal, Storage Blob Data Contributor | Created by Terraform from the principal Object ID |
+| Polaris accesses the Iceberg table container | Separate Azure service principal, Storage Blob Data Contributor on `streamify-iceberg` | Created by Terraform from the principal Object ID |
+| Spark writes Iceberg checkpoints | VM managed identity, Storage Blob Data Contributor on `streamify-checkpoints` | Created by Terraform |
 | AWS Snowflake reads ADLS | An Azure service principal associated with Snowflake | Authorized using [Snowflake setup](../snowflake/README.en.md) |
 
 A managed identity is an application identity that Azure manages for the VM. There are no credentials to save manually. After Terraform creates the identity and permissions, Spark and other applications still need to be configured to use that identity.

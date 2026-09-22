@@ -141,7 +141,7 @@ bash create_spark_principal.sh \
 spark_client → spark_principal_role → spark_catalog_role → CATALOG_MANAGE_CONTENT
 ```
 
-脚本先确认 catalog 存在，并拒绝覆盖同名 principal 或角色。成功时会打印下一步需要的 `clientId` 和 `clientSecret`。将它们保存为 Spark Master 本地的 `~/.polaris_spark.env`：
+脚本先确认 catalog 存在，并拒绝覆盖同名 principal 或角色。成功时会打印下一步需要的 `clientId` 和 `clientSecret`。将它们填入 Spark Master 本地的 `~/.config/streamify/spark-iceberg.env`；创建该文件的方法见 [Spark 配置](spark.md#6-并行写入第一张真实-iceberg-表)：
 
 ```bash
 export POLARIS_SPARK_CLIENT_ID=<clientId>
@@ -156,8 +156,7 @@ export POLARIS_SPARK_CLIENT_SECRET=<clientSecret>
 
 ```bash
 source "$HOME/.spark_env"
-source "$HOME/.polaris_spark.env"
-export SPARK_MASTER_URL="spark://$(hostname -I | awk '{print $1}'):7077"
+source "$HOME/.config/streamify/spark-iceberg.env"
 ```
 
 这条 `SPARK_MASTER_URL` 命令在 Spark Master 上取它的私网 IP，组成 standalone Master URL。然后自己启动交互式 Spark SQL。将 `<catalog-name>` 替换为 Polaris 中已有的 Azure catalog：

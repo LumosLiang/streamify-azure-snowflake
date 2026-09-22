@@ -56,8 +56,10 @@ are not yet part of the dimensional model.
   Accounts.
 - Snowflake uses its Azure enterprise application to read the existing container.
 - Polaris uses a separate service principal with `Storage Blob Data Contributor`
-  on the Iceberg Storage Account. Catalog and validation-table access have been
-  verified through Spark SQL.
+  on the Iceberg table container. Spark VM managed identities are configured for
+  `Storage Blob Data Contributor` on the separate Iceberg checkpoint container.
+  Catalog and validation-table access have been verified through Spark SQL;
+  checkpoint-container access is pending Terraform apply.
 
 Do not substitute one identity for another without tracing who performs the
 actual data-plane operation.
@@ -82,12 +84,16 @@ must re-check live state before making operational claims.
 ## Work in progress and deferred decisions
 
 The current Iceberg preparation adds a separate HNS-enabled Storage Account with
-a private `streamify-iceberg` container, Polaris Azure credentials, one Polaris
-catalog, and a Spark principal. The catalog points to the dedicated account and
-its RBAC is configured. Spark SQL has created the isolated `validation`
-namespace and `spark_connectivity` Iceberg table, inserted one row, and read it
-back successfully. A streaming Iceberg writer, Snowflake catalog integration,
-and Airflow maintenance DAG remain deferred.
+private `streamify-iceberg` and `streamify-checkpoints` containers, Polaris Azure
+credentials, one Polaris catalog, and a Spark principal. The catalog points to
+the dedicated table container and its RBAC is configured. The checkpoint
+container and Spark identity RBAC are defined in Terraform but await apply.
+Spark SQL has created the isolated `validation` namespace and
+`spark_connectivity` Iceberg table, inserted one row, and read it back
+successfully. `stream_listen_events_iceberg.py` now defines its Kafka read,
+normalization, table DDL, runtime configuration, isolated checkpoint path, and
+Iceberg writer; this streaming path is not runtime verified. Snowflake catalog
+integration and Airflow maintenance DAG remain deferred.
 
 Do not implement those later stages as part of a smaller Terraform, RBAC, or
 Polaris setup request. The isolated namespace and validation table are complete.

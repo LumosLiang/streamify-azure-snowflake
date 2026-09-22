@@ -14,7 +14,8 @@ def string_decode(s, encoding='utf-8'):
     else:
         return s
 
-def create_or_get_spark_session(app_name, master=None, storage_account=None):
+def create_or_get_spark_session(
+        app_name, master=None, storage_account=None, extra_configs=None):
     """
     Creates or gets a Spark Session
 
@@ -25,6 +26,8 @@ def create_or_get_spark_session(app_name, master=None, storage_account=None):
             Spark standalone URL. The submit command supplies this value.
         storage_account : str, optional
             ADLS Gen2 account name used with the VM managed identity.
+        extra_configs : dict, optional
+            Additional Spark configuration applied before the session starts.
     Returns:
         spark: SparkSession
     """
@@ -37,6 +40,9 @@ def create_or_get_spark_session(app_name, master=None, storage_account=None):
                    .config(f"spark.hadoop.fs.azure.account.auth.type.{account_host}", "OAuth")
                    .config(f"spark.hadoop.fs.azure.account.oauth.provider.type.{account_host}",
                            "org.apache.hadoop.fs.azurebfs.oauth2.MsiTokenProvider"))
+    if extra_configs:
+        for key, value in extra_configs.items():
+            builder = builder.config(key, value)
 
     spark = builder.getOrCreate()
 

@@ -141,7 +141,7 @@ The first argument must be an existing Polaris catalog. The remaining three are 
 spark_client → spark_principal_role → spark_catalog_role → CATALOG_MANAGE_CONTENT
 ```
 
-The script first checks that the catalog exists and refuses to overwrite a principal or role with the same name. On success, it prints the `clientId` and `clientSecret` needed in the next step. Save them in `~/.polaris_spark.env` on the Spark Master:
+The script first checks that the catalog exists and refuses to overwrite a principal or role with the same name. On success, it prints the `clientId` and `clientSecret` needed in the next step. Put them in `~/.config/streamify/spark-iceberg.env` on the Spark Master; see [Spark setup](spark.en.md#6-write-the-first-real-iceberg-table-in-parallel) for creating that file:
 
 ```bash
 export POLARIS_SPARK_CLIENT_ID=<clientId>
@@ -156,8 +156,7 @@ In the `polaris/` directory on the Spark Master, load the Spark environment and 
 
 ```bash
 source "$HOME/.spark_env"
-source "$HOME/.polaris_spark.env"
-export SPARK_MASTER_URL="spark://$(hostname -I | awk '{print $1}'):7077"
+source "$HOME/.config/streamify/spark-iceberg.env"
 ```
 
 This `SPARK_MASTER_URL` command gets the Spark Master's private IP and forms its standalone Master URL. Then start an interactive Spark SQL session yourself. Replace `<catalog-name>` with the existing Azure catalog in Polaris:

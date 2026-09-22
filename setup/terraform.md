@@ -94,7 +94,7 @@ terraform apply
 | Kafka VM | 1 台 D4as v5：4 核、16 GiB |
 | Airflow VM | 1 台 E2as v5：2 核、16 GiB |
 | Spark master + 两个 worker | 3 台 D2as v5：每台 2 核、8 GiB，Spark 另行安装 |
-| 数据湖 | 两个 ADLS Gen2 Storage Account：现有 Parquet 使用 `streamify`，Iceberg 使用独立的 `streamify-iceberg` |
+| 数据湖 | 两个 ADLS Gen2 Storage Account：现有 Parquet 使用 `streamify`；Iceberg 账号包含 `streamify-iceberg` 表 container 和 `streamify-checkpoints` 流状态 container |
 | Snowflake | Terraform 不创建；在现有 AWS 账号中按 [Snowflake 初始化](../snowflake/README.md) 配置 |
 
 每台 VM 使用 Ubuntu 24.04 和 32 GiB Standard SSD 系统盘。
@@ -111,7 +111,7 @@ abfss://streamify@<account-name>.dfs.core.windows.net/<event-type>/
 abfss://streamify@<account-name>.dfs.core.windows.net/checkpoint/<event-type>/
 ```
 
-`streamify-iceberg` 位于独立的 HNS Storage Account。账号名由订阅 ID 的哈希确定，并避开会触发 [Azure SDK endpoint 解析问题](../polaris/azure-directory-sas-account-name-bug.md)的服务关键字；它不会改变现有 Parquet 写入路径。
+`streamify-iceberg` 和 `streamify-checkpoints` 位于独立的 HNS Storage Account。前者仅由 Polaris 管理 Iceberg 表的数据和 metadata；后者仅保存 Spark Structured Streaming 的 checkpoint。账号名由订阅 ID 的哈希确定，并避开会触发 [Azure SDK endpoint 解析问题](../polaris/azure-directory-sas-account-name-bug.md)的服务关键字；它不会改变现有 Parquet 写入路径。
 
 Snowflake 外部 Stage 对应的地址为：
 
@@ -131,7 +131,8 @@ azure://<account-name>.blob.core.windows.net/streamify/
 | 在 Portal 查看两个账号的数据 | 你的 Azure 用户，Storage Blob Data Reader，账号级作用域 | Terraform 创建 |
 | Spark 读写现有 `streamify` 容器 | VM Managed Identity，Storage Blob Data Contributor | Terraform 创建 |
 | Airflow 读取现有 `streamify` 容器 | VM Managed Identity，Storage Blob Data Reader | Terraform 创建 |
-| Polaris 访问 Iceberg 账号 | 独立 Azure Service Principal，Storage Blob Data Contributor | Terraform 根据 principal Object ID 创建 |
+| Polaris 访问 Iceberg 表 container | 独立 Azure Service Principal，`streamify-iceberg` 上的 Storage Blob Data Contributor | Terraform 根据 principal Object ID 创建 |
+| Spark 写 Iceberg checkpoint | VM Managed Identity，`streamify-checkpoints` 上的 Storage Blob Data Contributor | Terraform 创建 |
 | AWS Snowflake 读取 ADLS | Snowflake 对应的 Azure Service Principal | 按 [Snowflake 初始化](../snowflake/README.md) 授权 |
 
 Managed Identity 是 Azure 为 VM 管理的程序身份，不需要手动保存凭据。Terraform 创建身份和权限后，Spark 等程序仍需配置为使用这个身份访问存储。

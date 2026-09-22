@@ -119,7 +119,40 @@ abfss://streamify@<storage-account-name>.dfs.core.windows.net/listen_events/
 abfss://streamify@<storage-account-name>.dfs.core.windows.net/checkpoint/listen_events/
 ```
 
-## 6. Stop the cluster
+## 6. Write the first real Iceberg table in parallel
+
+`stream_listen_events_iceberg.py` is an independent learning job. It handles only `listen_events` and does not modify `stream_all_events.py`, which continues to write Parquet. Polaris vends short-lived SAS credentials for table files in the separate Iceberg Storage Account. Spark's streaming checkpoint is written by the Spark VM managed identity to the separate `streamify-checkpoints` container in that account.
+
+The file defines Kafka reading, normalization, creation of `streamify_raw.listen_events`, and append-mode Iceberg writing. The code has not yet been runtime-validated against the new checkpoint container.
+
+Create the component runtime configuration from `spark_streaming/` on the Spark Master:
+
+```bash
+mkdir -p "$HOME/.config/streamify"
+cp spark-iceberg.env.example "$HOME/.config/streamify/spark-iceberg.env"
+```
+
+Edit `~/.config/streamify/spark-iceberg.env` and replace each `<...>` value with the current Spark master, Kafka, Polaris, and Iceberg checkpoint values. This file keeps Spark, Kafka, Polaris, and Iceberg runtime settings together. Each later session needs only one load:
+
+```bash
+source "$HOME/.spark_env"
+source "$HOME/.config/streamify/spark-iceberg.env"
+```
+
+The Polaris catalog determines the Iceberg table location. A checkpoint is not part of an Iceberg table, so `ICEBERG_CHECKPOINT_STORAGE_ACCOUNT` and `ICEBERG_CHECKPOINT_CONTAINER` specify it separately. It lives in a separate container in the same new Storage Account and is outside Iceberg table maintenance.
+
+Submit the job with:
+
+```bash
+spark-submit \
+  --master "$SPARK_MASTER_URL" \
+  --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.3,org.apache.spark:spark-hadoop-cloud_2.13:4.1.3,org.apache.iceberg:iceberg-spark-runtime-4.1_2.13:1.11.0,org.apache.iceberg:iceberg-azure-bundle:1.11.0 \
+  stream_listen_events_iceberg.py
+```
+
+`create_kafka_read_stream()` uses `earliest`, so the first run with a new checkpoint will process Kafka messages that are still retained. Iceberg Structured Streaming writes use `DataStreamWriter.toTable()`, and the table must exist first. See [Iceberg Structured Streaming](https://iceberg.apache.org/docs/latest/spark-structured-streaming/).
+
+## 7. Stop the cluster
 
 On the master, stop the master process. On each worker, stop its worker process:
 

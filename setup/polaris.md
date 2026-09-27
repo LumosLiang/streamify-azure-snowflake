@@ -200,11 +200,7 @@ EOF
 
 ## 7. 用 Spark SQL 验证第一张 Iceberg 表
 
-在 Spark Master 的 `polaris/` 目录，先加载 Spark 环境变量和 Spark principal 凭据：
-
-```bash
-source "$HOME/.config/streamify/spark-iceberg.env"
-```
+在 Spark Master 重新打开一个 SSH 会话。`spark-iceberg.env` 会在 Bash 启动时自动加载 Spark 环境变量和 Spark principal 凭据。
 
 这条 `SPARK_MASTER_URL` 命令在 Spark Master 上取它的私网 IP，组成 standalone Master URL。然后自己启动交互式 Spark SQL。将 `<catalog-name>` 替换为 Polaris 中已有的 Azure catalog：
 

@@ -16,6 +16,8 @@ bash scripts/spark_setup.sh
 ```
 
 The script installs Java 17 and Spark 4.1.3 and creates `~/.spark_env`. All three VMs must use the same versions.
+New Bash sessions load `~/.spark_env` automatically; it does not need to be sourced manually each time.
+See the [Bash startup files](https://www.gnu.org/software/bash/manual/html_node/Bash-Startup-Files.html) reference.
 
 ## 2. Start the master and workers
 
@@ -28,14 +30,12 @@ hostname -I
 On the master, start the standalone master:
 
 ```bash
-source ~/.spark_env
 "${SPARK_HOME}/sbin/start-master.sh"
 ```
 
 On each worker, replace the placeholder with the master's private IP:
 
 ```bash
-source ~/.spark_env
 "${SPARK_HOME}/sbin/start-worker.sh" spark://<spark-master-private-ip>:7077
 ```
 
@@ -50,17 +50,20 @@ The Spark Web UI listens on the master's port `8080` by default. See the [SSH gu
 
 ## 3. Configure connection settings
 
-Create the Parquet job configuration from `spark_streaming/` on the master:
+Create the Parquet job configuration from the project root on the Spark Master:
 
 ```bash
 mkdir -p "$HOME/.config/streamify"
-cp spark-parquet.env.example "$HOME/.config/streamify/spark-parquet.env"
-source "$HOME/.config/streamify/spark-parquet.env"
+cp spark_streaming/spark-parquet.env.example "$HOME/.config/streamify/spark-parquet.env"
 ```
 
-Replace each `<...>` value with the current values. `SPARK_MASTER_URL` schedules the job through `spark-submit`, `KAFKA_ADDRESS` reads the topics, and `AZURE_STORAGE_ACCOUNT` identifies the existing Parquet data lake. `stream_all_events.py` defaults to the `streamify` container, so `AZURE_STORAGE_CONTAINER` is unnecessary.
+Replace each `<...>` value, then run this once from the project root:
 
-Each later Parquet submission needs only one load of this file. The Spark master and Kafka VM use private addresses; VMs in the same VNet can communicate over them.
+```bash
+bash scripts/spark_env_autoload.sh
+```
+
+After reconnecting over SSH, Spark job settings load automatically. `SPARK_MASTER_URL` schedules the job through `spark-submit`, `KAFKA_ADDRESS` reads the topics, and `AZURE_STORAGE_ACCOUNT` identifies the existing Parquet data lake. `stream_all_events.py` defaults to the `streamify` container, so `AZURE_STORAGE_CONTAINER` is unnecessary. The Spark master and Kafka VM use private addresses; VMs in the same VNet can communicate over them.
 
 Terraform grants the managed identities of all three Spark VMs the `Storage Blob Data Contributor` role on the container. The job uses ABFS and the VM identities to write to ADLS, so no Azure key is required.
 
@@ -125,25 +128,21 @@ abfss://streamify@<storage-account-name>.dfs.core.windows.net/checkpoint/listen_
 
 The job has been runtime-validated: Kafka micro-batches have committed to Iceberg, and the checkpoint container contains streaming state. The existing Parquet streaming job is unchanged.
 
-Create the component runtime configuration from `spark_streaming/` on the Spark Master:
+Create the component runtime configuration from the project root on the Spark Master:
 
 ```bash
 mkdir -p "$HOME/.config/streamify"
-cp spark-iceberg.env.example "$HOME/.config/streamify/spark-iceberg.env"
+cp spark_streaming/spark-iceberg.env.example "$HOME/.config/streamify/spark-iceberg.env"
 ```
 
-Edit `~/.config/streamify/spark-iceberg.env` and replace each `<...>` value with the current Spark master, Kafka, Polaris catalog, and Iceberg checkpoint values. This file keeps the job runtime settings together and loads the persisted Spark principal. Each later session needs only one load:
-
-```bash
-source "$HOME/.config/streamify/spark-iceberg.env"
-```
+Edit `~/.config/streamify/spark-iceberg.env` and replace each `<...>` value with the current Spark master, Kafka, Polaris catalog, and Iceberg checkpoint values. Then run `bash scripts/spark_env_autoload.sh` once as described in section 3 and reconnect over SSH. The file then loads these settings and the persisted Spark principal automatically.
 
 The fields have these roles:
 
 | Field | Role |
 | --- | --- |
-| `source "$HOME/.spark_env"` | Loads Java, `SPARK_HOME`, and `PATH` configured during Spark installation. |
-| `source "$HOME/.polaris_spark.env"` | Loads the Spark principal OAuth credentials: `POLARIS_SPARK_CLIENT_ID` and `POLARIS_SPARK_CLIENT_SECRET`. |
+| `source "$HOME/.spark_env"` | Automatically loaded after Spark setup; provides Java, `SPARK_HOME`, and `PATH`. |
+| `source "$HOME/.polaris_spark.env"` | Automatically loads the Spark principal OAuth credentials: `POLARIS_SPARK_CLIENT_ID` and `POLARIS_SPARK_CLIENT_SECRET`. |
 | `SPARK_MASTER_URL` | Points to the standalone Spark Master, which schedules the driver and executors. |
 | `KAFKA_ADDRESS` | The Kafka VM private address used to connect to the `listen_events` topic. |
 | `POLARIS_CATALOG_NAME` | The Azure catalog name in Polaris, which determines the Iceberg table Storage Account, container, and base path. |

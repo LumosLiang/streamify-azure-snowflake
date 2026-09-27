@@ -33,15 +33,15 @@ docker compose version
 
 ## 3. 启动 Kafka
 
-将占位符替换为 Kafka VM 的实际私网 IP。查询方法见 [SSH 文档](ssh.md)。
+首次启动前，在项目根目录创建 Kafka 的本地 Compose 配置，并把占位符替换为 Kafka VM 的实际私网 IP。查询方法见 [SSH 文档](ssh.md)：
 
 ```bash
-export KAFKA_ADDRESS="<kafka-private-ip>"
+cp kafka/.env.example kafka/.env
 docker compose -f kafka/docker-compose.yml up -d
 docker compose -f kafka/docker-compose.yml ps
 ```
 
-Compose 要求明确设置 `KAFKA_ADDRESS`。每次在新终端运行这些命令前，都要设置该变量。
+Docker Compose 会自动读取 `kafka/.env`，以后启动 Kafka 不必再手动 `export KAFKA_ADDRESS`。
 `KAFKA_ADVERTISED_LISTENERS` 会把地址告知客户端；Docker 内部组件使用 `broker:29092`，其他 VM 使用 `<kafka-private-ip>:9092`。
 
 等待 Broker 就绪后检查 Topic；如果失败，先查看容器日志：
@@ -87,4 +87,4 @@ docker ps -a --filter name=million_events
 已停止的原容器可用 `docker start million_events` 启动，仍使用创建时的参数和镜像。
 启动后应出现 `listen_events`、`page_view_events`、`auth_events` 和 `status_change_events` 四个 Topic。
 
-参考：[Docker Ubuntu 安装说明](https://docs.docker.com/engine/install/ubuntu/)
+参考：[Docker Ubuntu 安装说明](https://docs.docker.com/engine/install/ubuntu/)、[Compose 环境变量插值](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/)

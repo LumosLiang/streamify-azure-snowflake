@@ -18,10 +18,10 @@ A configuration change is incomplete if a direct consumer still uses the old
 contract. Avoid copying the same configuration into more places when an existing
 environment variable or canonical file can remain the source.
 
-For a component with several runtime values, use one local component environment
-file with placeholders in its tracked example. It may source the generic Spark
-environment when needed. Document one `source` command for the component rather
-than a sequence of ad hoc exports.
+Keep environment variables with their consumer: Compose reads a component's
+`.env` file automatically, while Spark job profiles live under
+`~/.config/streamify/` and load in new interactive Bash sessions. Do not require
+repeated manual `source` or `export` commands in setup docs.
 
 Treat each runtime variable as a cross-component contract. When adding,
 removing, renaming, or defaulting one, review and align all of these before

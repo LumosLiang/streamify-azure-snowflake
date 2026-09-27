@@ -17,6 +17,8 @@ bash scripts/spark_setup.sh
 ```
 
 脚本安装 Java 17 和 Spark 4.1.3，并创建 `~/.spark_env`。三台 VM 必须使用相同版本。
+脚本会让新 Bash 会话自动加载 `~/.spark_env`；无需每次手动 `source`。
+参考：[Bash 启动文件](https://www.gnu.org/software/bash/manual/html_node/Bash-Startup-Files.html)。
 
 ### 2. 启动 master 和 workers
 
@@ -29,14 +31,12 @@ hostname -I
 在 master 上启动 standalone master：
 
 ```bash
-source ~/.spark_env
 "${SPARK_HOME}/sbin/start-master.sh"
 ```
 
 在两个 worker 上执行下面命令，把地址替换为 master 的私网 IP：
 
 ```bash
-source ~/.spark_env
 "${SPARK_HOME}/sbin/start-worker.sh" spark://<spark-master-private-ip>:7077
 ```
 
@@ -51,17 +51,22 @@ Spark Web UI 默认监听 master 的 `8080`；通过 SSH 转发到本机 `8082` 
 
 ### 3. 配置连接信息
 
-在 master 的 `spark_streaming/` 目录创建 Parquet 作业配置：
+在 Spark Master 的项目根目录创建 Parquet 作业配置：
 
 ```bash
 mkdir -p "$HOME/.config/streamify"
-cp spark-parquet.env.example "$HOME/.config/streamify/spark-parquet.env"
-source "$HOME/.config/streamify/spark-parquet.env"
+cp spark_streaming/spark-parquet.env.example "$HOME/.config/streamify/spark-parquet.env"
 ```
 
-将其中的 `<...>` 替换为当前值。`SPARK_MASTER_URL` 供 `spark-submit` 调度作业，`KAFKA_ADDRESS` 供作业读取 topics，`AZURE_STORAGE_ACCOUNT` 指向现有 Parquet 数据湖。`stream_all_events.py` 默认使用 `streamify` container，所以不需要配置 `AZURE_STORAGE_CONTAINER`。
+将其中的 `<...>` 替换为当前值，然后在项目根目录运行一次：
 
-之后每次运行 Parquet 作业前只需加载一次这个文件。Spark master 和 Kafka VM 使用私网地址；同一 VNet 内的 VM 可以通过私网通信。
+```bash
+bash scripts/spark_env_autoload.sh
+```
+
+重新 SSH 登录后，Spark 作业配置会自动加载。`SPARK_MASTER_URL` 供 `spark-submit` 调度作业，`KAFKA_ADDRESS` 供作业读取 topics，`AZURE_STORAGE_ACCOUNT` 指向现有 Parquet 数据湖。`stream_all_events.py` 默认使用 `streamify` container，所以不需要配置 `AZURE_STORAGE_CONTAINER`。
+
+Spark master 和 Kafka VM 使用私网地址；同一 VNet 内的 VM 可以通过私网通信。
 
 Terraform 已向三台 Spark VM 的 managed identity 授予容器级 `Storage Blob Data Contributor`
 权限。作业通过 ABFS 和 VM 身份写入 ADLS，不需要 Azure 密钥。
@@ -127,25 +132,21 @@ abfss://streamify@<storage-account-name>.dfs.core.windows.net/checkpoint/listen_
 
 作业已完成运行验证：Kafka micro-batch 已提交到 Iceberg，checkpoint container 也已写入状态文件。现有 Parquet 流作业保持不变。
 
-在 Spark Master 的 `spark_streaming/` 目录创建组件配置：
+在 Spark Master 的项目根目录创建组件配置：
 
 ```bash
 mkdir -p "$HOME/.config/streamify"
-cp spark-iceberg.env.example "$HOME/.config/streamify/spark-iceberg.env"
+cp spark_streaming/spark-iceberg.env.example "$HOME/.config/streamify/spark-iceberg.env"
 ```
 
-将其中的 `<...>` 替换为当前值。此文件统一保存 Spark、Kafka、Polaris catalog 和 checkpoint 参数，并加载持久化的 Spark principal；每次提交前只需加载一次：
-
-```bash
-source "$HOME/.config/streamify/spark-iceberg.env"
-```
+将其中的 `<...>` 替换为当前值。然后按第 3 节运行一次 `bash scripts/spark_env_autoload.sh` 并重新 SSH 登录；此文件会自动加载 Spark、Kafka、Polaris catalog 和 checkpoint 参数，也会加载持久化的 Spark principal。
 
 各字段的作用如下：
 
 | 字段 | 作用 |
 | --- | --- |
-| `source "$HOME/.spark_env"` | 加载 Spark 安装时已配置的 Java、`SPARK_HOME` 和 `PATH`。 |
-| `source "$HOME/.polaris_spark.env"` | 加载 Spark principal 的 OAuth 凭据 `POLARIS_SPARK_CLIENT_ID` 和 `POLARIS_SPARK_CLIENT_SECRET`。 |
+| `source "$HOME/.spark_env"` | 由 Spark 安装脚本配置为自动加载，提供 Java、`SPARK_HOME` 和 `PATH`。 |
+| `source "$HOME/.polaris_spark.env"` | 自动加载 Spark principal 的 OAuth 凭据 `POLARIS_SPARK_CLIENT_ID` 和 `POLARIS_SPARK_CLIENT_SECRET`。 |
 | `SPARK_MASTER_URL` | 指向 standalone Spark Master，`spark-submit` 据此把 driver 和 executors 调度到集群。 |
 | `KAFKA_ADDRESS` | Kafka VM 的私网地址；作业通过它连接 `listen_events` topic。 |
 | `POLARIS_CATALOG_NAME` | Polaris 中 Azure catalog 的名称，决定 Iceberg 表所在的 Storage Account、container 和根路径。 |

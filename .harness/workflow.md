@@ -81,9 +81,9 @@ just to appear thorough.
   and unverified wording in the same documentation change.
 - Keep adjacent setup headings parallel and action-oriented, for example
   "Submit a streaming job" rather than a narrative description of the result.
-- Store runtime values by component in one local configuration file. The command
-  path should load that file once; do not make users repeatedly export the same
-  values in setup instructions.
+- Store runtime values with their consumer: Compose reads a component `.env`
+  automatically; Spark job profiles load when a new interactive Bash session
+  starts. Do not require repeated `source` or `export` commands.
 - State whether a process is manually started, container-restarted, or supervised
   by a host service from the executable configuration. Do not imply autostart.
 

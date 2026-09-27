@@ -200,11 +200,7 @@ This file holds the Polaris principal shared by Spark clients; `spark-iceberg.en
 
 ## 7. Validate the first Iceberg table with Spark SQL
 
-In the `polaris/` directory on the Spark Master, load the Spark environment and Spark principal credentials:
-
-```bash
-source "$HOME/.config/streamify/spark-iceberg.env"
-```
+Open a new SSH session on the Spark Master. Bash loads `spark-iceberg.env`, the Spark environment, and Spark principal credentials automatically at startup.
 
 This `SPARK_MASTER_URL` command gets the Spark Master's private IP and forms its standalone Master URL. Then start an interactive Spark SQL session yourself. Replace `<catalog-name>` with the existing Azure catalog in Polaris:
 

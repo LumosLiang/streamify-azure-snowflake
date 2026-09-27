@@ -33,15 +33,15 @@ docker compose version
 
 ## 3. Start Kafka
 
-Replace the placeholder with the Kafka VM's private IP. See the [SSH guide](ssh.en.md) for the query command.
+Before the first start, create Kafka's local Compose environment file from the project root and replace the placeholder with the Kafka VM's private IP. See the [SSH guide](ssh.en.md) for the query command.
 
 ```bash
-export KAFKA_ADDRESS="<kafka-private-ip>"
+cp kafka/.env.example kafka/.env
 docker compose -f kafka/docker-compose.yml up -d
 docker compose -f kafka/docker-compose.yml ps
 ```
 
-Compose requires `KAFKA_ADDRESS` to be set explicitly. Set it in each new terminal before running these commands.
+Docker Compose reads `kafka/.env` automatically, so you no longer need to export `KAFKA_ADDRESS` in each terminal.
 `KAFKA_ADVERTISED_LISTENERS` tells clients which address to use. Containers in the Compose network use `broker:29092`; other VMs use `<kafka-private-ip>:9092`.
 
 Once the broker is ready, list the topics. If this fails, check the container logs first:
@@ -87,4 +87,4 @@ docker ps -a --filter name=million_events
 Use `docker start million_events` to restart an existing stopped container. It retains the image and arguments used when it was created.
 The expected topics are `listen_events`, `page_view_events`, `auth_events`, and `status_change_events`.
 
-Reference: [Install Docker on Ubuntu](https://docs.docker.com/engine/install/ubuntu/)
+References: [Install Docker on Ubuntu](https://docs.docker.com/engine/install/ubuntu/), [Compose variable interpolation](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/)

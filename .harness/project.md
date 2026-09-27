@@ -22,6 +22,10 @@ Eventsim
        checkpoint/<event-type>/...
   -> Snowflake external stage and hourly COPY INTO staging tables
   -> dbt seeds and dimensional models
+
+Kafka listen_events
+  -> parallel Spark Structured Streaming job
+  -> Polaris REST catalog -> ADLS Gen2 Iceberg table
 ```
 
 `status_change_events` may be produced by Eventsim, but the current Spark job
@@ -37,7 +41,7 @@ are not yet part of the dimensional model.
 | Host setup | `scripts/vm_setup.sh`, `setup/ssh*.md` | Ubuntu Docker installation and operator access |
 | Event source | `eventsim/`, `scripts/eventsim_startup.sh` | Generate synthetic music-service events |
 | Kafka | `kafka/docker-compose.yml`, `setup/kafka*.md` | KRaft broker, Schema Registry, Control Center and tools |
-| Spark | `spark_streaming/`, `scripts/spark_setup.sh`, `setup/spark*.md` | Consume three Kafka topics, normalize records, write partitioned Parquet and checkpoints |
+| Spark | `spark_streaming/`, `scripts/spark_setup.sh`, `setup/spark*.md` | Consume three Kafka topics into partitioned Parquet and checkpoints; a separate job writes `listen_events` to Iceberg |
 | Snowflake | `snowflake/` | Roles, users, database/schema/warehouse, storage integration, file format and stage |
 | Airflow | `airflow/`, `setup/airflow*.md` | Schedule Snowflake loads and dbt commands |
 | dbt | `dbt/`, `setup/dbt*.md` | Seeds, dimensions, fact table and wide view |
@@ -45,8 +49,10 @@ are not yet part of the dimensional model.
 
 ## Runtime topology and identities
 
-- Kafka VM: Kafka runs through Compose; Eventsim is created manually by
-  `scripts/eventsim_startup.sh` and has no restart policy.
+- Kafka VM: Kafka runs through Compose. New auto-created event topics default
+  to four partitions; existing topics require an explicit online alteration.
+  Eventsim is created manually by `scripts/eventsim_startup.sh` and has no
+  restart policy.
 - Airflow VM: Airflow Docker Compose stack; dbt is installed in the custom
   Airflow image and the repository `dbt/` directory is mounted into containers.
 - Spark master and two workers: Spark 4.1.3 installed directly on Ubuntu 24.04.
@@ -79,6 +85,10 @@ actual data-plane operation.
   shell is not a durable process supervisor.
 - The parallel Iceberg writer has consumed `listen_events`, committed micro-batches
   to `streamify_raw.listen_events`, and created state in its checkpoint container.
+- The live `listen_events` topic was expanded from one to four partitions. After
+  a restart with the same checkpoint, the Iceberg writer resumed offsets for all
+  four partitions. A short observation recorded roughly 25.5 produced events per
+  second; it is not an end-to-end Spark throughput benchmark.
 
 These statements describe repository intent plus user-reported results. An agent
 must re-check live state before making operational claims.
@@ -93,16 +103,28 @@ Spark SQL has created the isolated `validation` namespace and
 `spark_connectivity` Iceberg table, inserted one row, and read it back
 successfully. `stream_listen_events_iceberg.py` has also consumed Kafka,
 created and written `streamify_raw.listen_events`, and initialized its isolated
-checkpoint path. Snowflake catalog integration and Airflow maintenance DAG
-remain deferred.
+checkpoint path. Snowflake does not yet query the Polaris-managed Iceberg
+table. A Snowflake REST catalog integration SQL template and Terraform/Caddy
+configuration for an HTTPS endpoint are prepared, but the Terraform plan has
+not been applied and the endpoint is not runtime-verified. A separate read-only
+Polaris principal also remains to be created. Do not describe Snowflake access
+as operational until the endpoint, integration, linked database, and query are
+verified. An Airflow-triggered Spark maintenance path for compaction, snapshot
+expiration, and orphan-file cleanup remains deferred.
 
 Do not implement those later stages as part of a smaller Terraform, RBAC, or
 Polaris setup request. The isolated namespace and validation table are complete.
 The remaining sequence is:
 
-1. Evaluate Snowflake access.
-2. Add compaction/snapshot/orphan-file maintenance only after the table path is
-   understood and approved.
+1. Apply and verify the Polaris HTTPS endpoint, create a separate read-only
+   principal, then evaluate Snowflake access.
+2. Add compaction/snapshot/orphan-file maintenance only after Snowflake access
+   has been evaluated and the maintenance path is explicitly approved.
+
+The Azure SDK endpoint-parsing issue has a documented storage-account naming
+workaround in `polaris/`. No custom Polaris image or source patch is deployed,
+and no upstream issue or pull request has been filed. Do not describe either as
+completed without new evidence.
 
 Also deferred: playback update/correction/delete simulation. If revisited,
 retain immutable raw events and apply corrections to derived effective tables.

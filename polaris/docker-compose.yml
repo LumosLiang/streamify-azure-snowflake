@@ -50,5 +50,22 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
+  caddy:
+    image: caddy:2.11.4-alpine
+    environment:
+      POLARIS_PUBLIC_HOSTNAME: ${POLARIS_PUBLIC_HOSTNAME:?Set POLARIS_PUBLIC_HOSTNAME}
+    ports:
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      polaris:
+        condition: service_started
+    restart: unless-stopped
+
 volumes:
   polaris-db:
+  caddy-data:
+  caddy-config:

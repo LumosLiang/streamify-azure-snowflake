@@ -58,15 +58,33 @@ AZURE_CLIENT_SECRET=<password>
 
 ## 4. 启动并检查服务
 
+先在 Mac 项目目录检查并应用 Terraform 变更。它会为 Spark Master 公网 IP 设置 Azure DNS label，并允许公网来源通过 TCP 443 访问 Spark Master；Polaris API 本身仍要求 OAuth 认证：
+
 ```bash
+terraform -chdir=terraform fmt -check
+terraform -chdir=terraform validate
+terraform -chdir=terraform plan
+```
+
+仔细检查计划；如果它要替换现有公网 IP 或 VM，先停下来，不要 apply。确认只有 DNS label 和 HTTPS 入站规则变化后，再由你运行 `terraform -chdir=terraform apply`。取得 Terraform 输出的 HTTPS 主机名：
+
+```bash
+terraform -chdir=terraform output -raw polaris_public_fqdn
+```
+
+在 Spark Master 的 `polaris/.env` 中设置 `POLARIS_PUBLIC_HOSTNAME` 为这个完整主机名，然后启动 Compose：
+
+```bash
+cd ~/streamify-azure-snowflake/polaris
 docker compose up -d
 docker compose ps
 docker compose logs bootstrap
+docker compose logs caddy
 curl http://localhost:8182/q/health
 ```
 
 `bootstrap` 首次创建 `POLARIS` realm 后正常退出；PostgreSQL 和 Polaris 会继续运行。API 使用端口 `8181`，管理和健康检查使用 `8182`。
-健康检查只证明服务已启动；ADLS 访问要在创建 catalog 和表后验证。
+Azure NSG 不允许公网访问 Polaris 的 8181 和 8182；新增的公网入口只有 Caddy 的 443。Caddy 在 443 终止 HTTPS，再把 API 请求转发给 Polaris。它会自动申请并续期 TLS 证书，证书状态保存在 Docker volume。HTTPS 可达只证明入口和 TLS 正常；ADLS 访问还要在创建 catalog 和表后验证。
 
 ## 5. 创建 Azure catalog
 
@@ -228,4 +246,4 @@ docker compose down
 
 不要使用 `docker compose down -v`，它会删除 PostgreSQL volume 中的 Polaris metadata。
 
-参考：[Polaris 的 Azure 存储配置](https://polaris.apache.org/releases/1.7.0/configuration/configuring-polaris-for-production/configuring-azure-blob-cloud-storage-specific/)、[Polaris 的 Spark 用法](https://polaris.apache.org/releases/1.7.0/getting-started/using-polaris/)、[Iceberg 1.11.0 releases](https://iceberg.apache.org/releases/)。
+参考：[Polaris 的 Azure 存储配置](https://polaris.apache.org/releases/1.7.0/configuration/configuring-polaris-for-production/configuring-azure-blob-cloud-storage-specific/)、[Polaris 的 Spark 用法](https://polaris.apache.org/releases/1.7.0/getting-started/using-polaris/)、[Caddy 自动 HTTPS](https://caddyserver.com/docs/automatic-https)、[Iceberg 1.11.0 releases](https://iceberg.apache.org/releases/)。

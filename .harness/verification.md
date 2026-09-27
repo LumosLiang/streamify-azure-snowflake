@@ -34,6 +34,8 @@ terraform -chdir=terraform validate -no-color
 ```
 
 The user runs `terraform plan` and reviews replacements/deletions before apply.
+For the Polaris public endpoint, confirm the ingress rule targets only the Spark
+Master on TCP 443 and that no existing public IP or VM is replaced.
 An agent may analyze a supplied plan, but must not infer plan safety from
 `validate`.
 
@@ -69,6 +71,12 @@ docker compose -f <compose-file> config --quiet
 
 Do not use `up`, `down`, `down -v`, or image pulls as a formatting check. Explain
 container recreation and volume effects before a user-run deployment.
+
+When changing Kafka topic defaults or partition instructions, also verify the
+existing-topic path separately. `KAFKA_NUM_PARTITIONS` affects future
+auto-created topics only; it does not alter a live topic. Record producer rate,
+Spark input rate, Kafka lag, batch duration, and committed Iceberg records as
+separate values during a benchmark.
 
 ## dbt and SQL
 

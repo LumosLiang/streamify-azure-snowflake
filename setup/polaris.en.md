@@ -58,15 +58,33 @@ They map to the creation command's `tenant`, `appId`, and `password`. Docker Com
 
 ## 4. Start and check the service
 
+First, review and apply the Terraform change from the project directory on your Mac. It assigns an Azure DNS label to the Spark Master's public IP and allows public sources to reach the Spark Master over TCP 443. Polaris API requests still require OAuth authentication:
+
 ```bash
+terraform -chdir=terraform fmt -check
+terraform -chdir=terraform validate
+terraform -chdir=terraform plan
+```
+
+Review the plan carefully. If it proposes replacing an existing public IP or VM, stop and do not apply. Once you confirm that only the DNS label and HTTPS ingress rule change, run `terraform -chdir=terraform apply` yourself. Get the HTTPS hostname from Terraform:
+
+```bash
+terraform -chdir=terraform output -raw polaris_public_fqdn
+```
+
+On the Spark Master, set `POLARIS_PUBLIC_HOSTNAME` in `polaris/.env` to this full hostname, then start Compose:
+
+```bash
+cd ~/streamify-azure-snowflake/polaris
 docker compose up -d
 docker compose ps
 docker compose logs bootstrap
+docker compose logs caddy
 curl http://localhost:8182/q/health
 ```
 
 `bootstrap` creates the `POLARIS` realm once and then exits normally. PostgreSQL and Polaris remain running. The API uses port `8181`; management and health checks use `8182`.
-The health check only confirms that the service is running. ADLS access must be verified after creating a catalog and table.
+The Azure NSG does not allow public access to Polaris ports 8181 and 8182; Caddy on port 443 is the only new public entry point. Caddy terminates HTTPS and forwards API requests to Polaris. It automatically provisions and renews the TLS certificate; certificate state is stored in a Docker volume. HTTPS reachability confirms only that the endpoint and TLS work. ADLS access must be verified after creating a catalog and table.
 
 ## 5. Create the Azure catalog
 
@@ -228,4 +246,4 @@ docker compose down
 
 Do not run `docker compose down -v`; it deletes the Polaris metadata stored in the PostgreSQL volume.
 
-References: [Polaris Azure storage configuration](https://polaris.apache.org/releases/1.7.0/configuration/configuring-polaris-for-production/configuring-azure-blob-cloud-storage-specific/), [using Polaris with Spark](https://polaris.apache.org/releases/1.7.0/getting-started/using-polaris/), and [Iceberg 1.11.0 releases](https://iceberg.apache.org/releases/).
+References: [Polaris Azure storage configuration](https://polaris.apache.org/releases/1.7.0/configuration/configuring-polaris-for-production/configuring-azure-blob-cloud-storage-specific/), [using Polaris with Spark](https://polaris.apache.org/releases/1.7.0/getting-started/using-polaris/), [Caddy automatic HTTPS](https://caddyserver.com/docs/automatic-https), and [Iceberg 1.11.0 releases](https://iceberg.apache.org/releases/).

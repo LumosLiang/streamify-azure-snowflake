@@ -99,7 +99,9 @@ terraform apply
 
 The Kafka VM uses Ubuntu 24.04 with a 62 GiB Standard SSD OS disk; the other four VMs use 32 GiB.
 Networking includes a resource group, VNet, subnet, NSG, network interfaces, and public IPs.
-SSH is restricted to `admin_source_cidr`. VMs communicate through private IPs.
+SSH is restricted to `admin_source_cidr`. A separate rule allows public sources to reach the Spark Master over TCP 443 for Snowflake to access the Polaris HTTPS API. Polaris requires OAuth authentication; ports 8181/8182 are not public. Azure's default rules still deny other Internet ingress. VMs communicate through private IPs.
+
+The Spark Master's public IP has an Azure DNS label derived from a hash of the subscription ID. Terraform outputs `polaris_public_fqdn`; Caddy uses it to obtain a TLS certificate and Snowflake uses it as the catalog integration endpoint. There are no public ingress rules for Polaris ports 8181 or 8182.
 
 Terraform creates the infrastructure only. It does not install Docker, start applications, or schedule shutdowns.
 After deployment, follow the [SSH guide](ssh.en.md), then [deploy Kafka and Eventsim](kafka.en.md).
@@ -185,3 +187,7 @@ Reference: [Install Terraform](https://developer.hashicorp.com/terraform/install
 
 - [Terraform authentication with Azure CLI](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/guides/azure_cli)
 - [Managed identities](https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/overview)
+- [Azure public IPs and DNS labels](https://learn.microsoft.com/en-us/azure/virtual-network/ip-services/public-ip-addresses)
+- [Azure NSG rules](https://learn.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview)
+- [Terraform azurerm_public_ip 5.4.0](https://registry.terraform.io/providers/hashicorp/azurerm/5.4.0/docs/resources/public_ip)
+- [Terraform azurerm_network_security_group 5.4.0](https://registry.terraform.io/providers/hashicorp/azurerm/5.4.0/docs/resources/network_security_group)

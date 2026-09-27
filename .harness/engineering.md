@@ -60,6 +60,14 @@ variables simply because an existing local environment file still accepts them.
 ## Kafka and Docker Compose
 
 - Kafka is KRaft-based. Do not reintroduce ZooKeeper.
+- New auto-created event topics use the broker's configured partition default;
+  an existing topic must be expanded explicitly and can never be reduced. Match
+  source partition count to available Spark cores before scaling workers.
+- Do not infer Kafka source parallelism from an Iceberg sink log such as
+  `input RDD has ... partitions`; write distribution can change that number.
+- Treat producer rate, Spark input rate, Kafka lag, batch duration, and Iceberg
+  committed records as separate measurements. Do not call one of them an
+  end-to-end throughput result.
 - Maintain the distinction between Docker-internal listeners and the private VM
   listener advertised to Spark.
 - Check whether a Compose change recreates containers and whether persistent
@@ -95,6 +103,27 @@ variables simply because an existing local environment file still accepts them.
 - When changing a model, check its grain, key, join cardinality, null behavior,
   history semantics, and downstream fact/wide model use.
 - Format SQL consistently, but do not change business logic during formatting.
+- Snowflake currently reads the Parquet path through an external stage. It does
+  not yet query the Polaris-managed Iceberg table; do not merge these paths in
+  code, diagrams, or status claims without an approved integration.
+- The prepared self-hosted Polaris integration uses `CATALOG_SOURCE = ICEBERG_REST`
+  with vended credentials. Keep it separate from the Parquet storage integration
+  and use a dedicated read-only Polaris principal, never the root or Spark writer.
+- The planned public Polaris route is Caddy HTTPS on port 443; the NSG must keep
+  ports 8181/8182 closed to public ingress. Terraform/Compose configuration is
+  not a deployed endpoint; verify the plan and runtime before claiming Snowflake
+  connectivity.
+
+## Polaris and Iceberg
+
+- Polaris manages Iceberg metadata and vends short-lived ADLS credentials for
+  table files. Spark writes its streaming checkpoint through its managed identity
+  to a separate container; never treat the checkpoint as an Iceberg table asset.
+- The documented Azure endpoint issue was handled by choosing a compatible
+  dedicated Iceberg Storage Account. No Polaris source patch, custom image,
+  upstream issue, or upstream pull request is currently part of this repository.
+- Airflow may later trigger Spark maintenance, but it must not be added during
+  setup or streaming-writer work. Spark and Iceberg perform compaction itself.
 
 ## Shell
 

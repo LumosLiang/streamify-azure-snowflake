@@ -77,8 +77,19 @@ resource "azurerm_network_security_group" "main" {
     source_address_prefix      = var.admin_source_cidr
     destination_address_prefix = "*"
   }
-  # Default rules allow private VNet traffic and deny other Internet ingress.
-  # Kafka/Spark communicate using private IPs. Access web UIs through SSH tunnels.
+  security_rule {
+    name                       = "HTTPSForPolaris"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = "*"
+    destination_address_prefix = azurerm_network_interface.vm["spark-master"].private_ip_address
+  }
+  # All other Internet ingress remains denied by Azure's default NSG rules.
+  # Web UIs and management endpoints remain private and should use SSH tunnels.
 }
 
 resource "azurerm_subnet_network_security_group_association" "main" {
@@ -94,6 +105,7 @@ resource "azurerm_public_ip" "vm" {
   location            = azurerm_resource_group.main.location
   allocation_method   = "Static"
   sku                 = "Standard"
+  domain_name_label   = each.key == "spark-master" ? "streamify-polaris-${substr(sha1(var.subscription_id), 0, 8)}" : null
 }
 
 resource "azurerm_network_interface" "vm" {
@@ -229,4 +241,9 @@ resource "azurerm_role_assignment" "admin_iceberg_storage_reader" {
   role_definition_name = "Storage Blob Data Reader"
   principal_id         = var.admin_object_id
   principal_type       = "User"
+}
+
+output "polaris_public_fqdn" {
+  description = "HTTPS hostname for the Polaris reverse proxy on the Spark Master."
+  value       = azurerm_public_ip.vm["spark-master"].fqdn
 }

@@ -22,26 +22,37 @@ current task requires.
 
 ## Current system boundary
 
-The implemented main path is:
+The repository currently has two data paths:
 
 ```text
 Eventsim -> Kafka -> Spark Structured Streaming -> ADLS Gen2 Parquet
-                                                    |
-                                                    v
-                         Airflow -> Snowflake staging -> dbt models
+                                                    -> Airflow -> Snowflake staging -> dbt
+
+Kafka listen_events -> Spark Structured Streaming -> Polaris REST catalog
+                                                     -> ADLS Gen2 Iceberg table
 ```
 
 - Azure infrastructure is defined by Terraform: five VMs, network resources,
   managed identities, RBAC, and two ADLS Gen2 accounts.
 - Kafka and Eventsim share the Kafka VM and run in Docker. Kafka uses KRaft.
 - Spark is a manually installed standalone cluster: one master and two workers.
-- Airflow runs with Docker Compose on its own VM and invokes Snowflake SQL and dbt.
-- Snowflake is hosted on AWS and reads Parquet from Azure through a storage
-  integration and external stage.
-- `streamify` holds current events and checkpoints.
-- Polaris has a catalog, Spark principal, and one verified validation Iceberg
-  table in the separate `streamify-iceberg` account. A streaming Iceberg writer,
-  Snowflake integration, and maintenance jobs are not implemented yet.
+- The existing Parquet path is orchestrated by Airflow: Snowflake loads Parquet
+  from Azure through a storage integration and external stage, then dbt builds
+  models. This path remains intact.
+- A parallel Spark Structured Streaming job writes Kafka `listen_events` into
+  the Polaris-managed Iceberg table `streamify_raw.listen_events`. Its writes,
+  checkpointing, and Spark SQL reads have been runtime-verified.
+- Polaris and PostgreSQL run in Docker on the Spark Master VM. Polaris manages
+  the Iceberg catalog and metadata; table files live in the separate
+  `streamify-iceberg` ADLS Gen2 account. Streaming checkpoints use a separate
+  container and are not part of the Iceberg table.
+- Snowflake currently queries the Parquet path. The Snowflake REST catalog
+  integration and public HTTPS route for Polaris are prepared but not yet
+  deployed or runtime-verified. Do not describe Snowflake Iceberg reads as
+  working until the catalog integration and a table query succeed.
+- Airflow does not yet orchestrate the Iceberg streaming job or table
+  maintenance. Compaction, snapshot expiration, and orphan-file cleanup remain
+  deferred.
 
 Never describe planned or partially configured work as operational.
 

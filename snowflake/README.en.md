@@ -47,3 +47,16 @@ test -f airflow/.env || cp airflow/.env.example airflow/.env
 Set `SNOWFLAKE_ACCOUNT` and the private-key passphrase. The other defaults can remain unchanged.
 
 Then build the image using [Airflow setup](../setup/airflow.en.md) and verify the connection using [dbt setup](../setup/dbt.en.md).
+
+## 4. Connect to Iceberg tables managed by Polaris
+
+The existing `STREAMIFY_AZURE_INT` is only for Snowflake to read Parquet staging files. The Iceberg table is managed by a separate Polaris catalog. Snowflake connects to Polaris through an Iceberg REST catalog integration, then receives short-lived read-only SAS credentials from Polaris to access the ADLS files. This path does not reuse the Parquet storage integration.
+
+Complete these two prerequisites before running [polaris_catalog_setup.sql](polaris_catalog_setup.sql):
+
+1. Give the Polaris REST API an HTTPS address that Snowflake can reach. The running service still has only local/private HTTP access. Terraform and Compose now prepare an Azure DNS label, a Caddy HTTPS proxy, and TCP 443 ingress. Follow the [Polaris setup guide](../setup/polaris.en.md), review the plan, apply it yourself, then set the hostname on the Spark Master and start the proxy. `localhost`, a private IP, and an `http://` address will not work in the integration. The Terraform rule makes port 443 reachable from public sources on the Spark Master; Polaris still requires OAuth authentication, and the NSG continues to block public access to ports 8181/8182.
+2. Create a dedicated read-only Polaris principal and roles for Snowflake. Grant access only to the `streamify_raw` namespace and its tables, including `TABLE_READ_DATA` so Polaris can vend read-only SAS credentials. Do not reuse Spark's write principal.
+
+After those prerequisites are complete, replace the Polaris HTTPS hostname, catalog name, and read-only principal credentials in the SQL file, then run it in Snowsight as `ACCOUNTADMIN`. `SYSTEM$VERIFY_CATALOG_INTEGRATION` checks Snowflake's authentication and metadata access to Polaris. The catalog-linked database then discovers only `streamify_raw`; the final query checks whether Snowflake can read `listen_events`. The SQL has not been run, so end-to-end behavior remains unverified.
+
+Official references: [Iceberg REST catalog integration](https://docs.snowflake.com/en/user-guide/tables-iceberg-configure-catalog-integration-rest), [vended credentials](https://docs.snowflake.com/en/user-guide/tables-iceberg-configure-catalog-integration-vended-credentials), and [catalog-linked database](https://docs.snowflake.com/en/user-guide/tables-iceberg-catalog-linked-database).

@@ -99,7 +99,9 @@ terraform apply
 
 Kafka VM 使用 Ubuntu 24.04 和 62 GiB Standard SSD 系统盘；其余四台 VM 使用 32 GiB。
 网络资源包括 Resource Group、VNet、Subnet、NSG、网卡和公网 IP。
-SSH 只允许 `admin_source_cidr` 指定的地址，VM 之间用私网 IP 通信。
+SSH 只允许 `admin_source_cidr` 指定的地址；另有一条规则允许公网来源通过 TCP 443 访问 Spark Master，用于 Snowflake 访问 Polaris HTTPS API。Polaris API 要求 OAuth 认证，8181/8182 不对公网开放；其余公网入站仍由 Azure 默认规则拒绝。VM 之间用私网 IP 通信。
+
+Spark Master 公网 IP 配置了由订阅 ID 哈希生成的 Azure DNS label。Terraform 输出 `polaris_public_fqdn`，供 Caddy 申请 TLS 证书并作为 Snowflake catalog integration 的地址。Polaris 的 8181/8182 端口没有公网入站规则。
 
 Terraform 只创建基础设施，不安装 Docker 或启动应用，也没有自动关机。
 部署完成后，按 [SSH 配置](ssh.md) 连接 VM，再按 [Kafka 与 Eventsim 部署](kafka.md) 安装服务。
@@ -185,3 +187,7 @@ terraform destroy
 
 - [Terraform 使用 Azure CLI 认证](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/guides/azure_cli)
 - [Managed Identity](https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/overview)
+- [Azure Public IP 与 DNS label](https://learn.microsoft.com/en-us/azure/virtual-network/ip-services/public-ip-addresses)
+- [Azure NSG 规则](https://learn.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview)
+- [Terraform azurerm_public_ip 5.4.0](https://registry.terraform.io/providers/hashicorp/azurerm/5.4.0/docs/resources/public_ip)
+- [Terraform azurerm_network_security_group 5.4.0](https://registry.terraform.io/providers/hashicorp/azurerm/5.4.0/docs/resources/network_security_group)

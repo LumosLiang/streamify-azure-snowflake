@@ -10,6 +10,12 @@ The user prefers to understand and execute important setup steps. For a cloud or
 runtime task, prepare a reviewable change and teach the next command rather than
 silently operating the environment.
 
+When handing a key setup or deployment step to the user, include the relevant
+official product documentation alongside the exact project-specific steps or
+commands, explain what values they must supply, and state how to recognize
+success. Do not leave the user with commands alone or wait for them to ask for
+the official reference. Keep the handoff limited to the current step.
+
 ## Scope gate
 
 Before editing, define four things:
@@ -52,6 +58,9 @@ just to appear thorough.
   data flow, runtime behavior, or operator workflow, update its canonical
   documentation in the same change. Inspect that guide before deciding no
   documentation update is needed.
+- After a change, align the direct code/config consumers, tracked examples,
+  startup or submit commands, canonical bilingual docs, and harness status that
+  describe the changed behavior. Remove completed TODOs and stale instructions.
 - Preserve user-written learning files and incomplete exercises. Review them when
   asked; do not finish, relocate, or rename them automatically.
 - Preserve upstream attribution and Git history.

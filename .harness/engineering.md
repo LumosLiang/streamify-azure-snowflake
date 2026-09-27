@@ -106,7 +106,7 @@ variables simply because an existing local environment file still accepts them.
 - Snowflake currently reads the Parquet path through an external stage. It does
   not yet query the Polaris-managed Iceberg table; do not merge these paths in
   code, diagrams, or status claims without an approved integration.
-- The prepared self-hosted Polaris integration uses `CATALOG_SOURCE = ICEBERG_REST`
+- The prepared self-hosted Polaris integration uses `CATALOG_SOURCE = POLARIS`
   with vended credentials. Keep it separate from the Parquet storage integration
   and use a dedicated read-only Polaris principal, never the root or Spark writer.
 - `polaris/create_principal.sh` offers separate `spark-writer` and

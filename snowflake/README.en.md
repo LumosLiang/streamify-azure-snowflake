@@ -50,7 +50,7 @@ Then build the image using [Airflow setup](../setup/airflow.en.md) and verify th
 
 ## 4. Connect to Iceberg tables managed by Polaris
 
-The existing `STREAMIFY_AZURE_INT` is only for Snowflake to read Parquet staging files. The Iceberg table is managed by a separate Polaris catalog. Snowflake connects to Polaris through an Iceberg REST catalog integration, then receives short-lived read-only SAS credentials from Polaris to access the ADLS files. This path does not reuse the Parquet storage integration.
+The existing `STREAMIFY_AZURE_INT` is only for Snowflake to read Parquet staging files. The Iceberg table is managed by a separate Polaris catalog. Snowflake connects to the self-hosted Polaris catalog through a catalog integration with `CATALOG_SOURCE = POLARIS`, then receives short-lived read-only SAS credentials from Polaris to access the ADLS files. This path does not reuse the Parquet storage integration.
 
 Complete these two prerequisites before running [polaris_catalog_setup.sql](polaris_catalog_setup.sql):
 
@@ -59,4 +59,4 @@ Complete these two prerequisites before running [polaris_catalog_setup.sql](pola
 
 After the script succeeds, put its client ID, client secret, and principal-role name into the corresponding Polaris placeholders in the SQL file. Do not store these credentials in Spark's principal configuration. Replace the Polaris HTTPS hostname and catalog name, then run the SQL in Snowsight as `ACCOUNTADMIN`. `SYSTEM$VERIFY_CATALOG_INTEGRATION` checks Snowflake's authentication and metadata access to Polaris. The catalog-linked database discovers namespaces throughout the catalog; the final query checks whether Snowflake can read `listen_events`. The SQL has not been run, so end-to-end behavior remains unverified.
 
-Official references: [Polaris CLI](https://polaris.apache.org/releases/1.7.0/command-line-interface/), [Polaris RBAC](https://polaris.apache.org/releases/1.7.0/managing-security/access-control/), [Iceberg REST catalog integration](https://docs.snowflake.com/en/user-guide/tables-iceberg-configure-catalog-integration-rest), [vended credentials](https://docs.snowflake.com/en/user-guide/tables-iceberg-configure-catalog-integration-vended-credentials), and [catalog-linked database](https://docs.snowflake.com/en/user-guide/tables-iceberg-catalog-linked-database).
+Official references: [Snowflake catalog integration for Polaris](https://docs.snowflake.com/en/user-guide/tables-iceberg-configure-catalog-integration-open-catalog), [Polaris CLI](https://polaris.apache.org/releases/1.7.0/command-line-interface/), [Polaris RBAC](https://polaris.apache.org/releases/1.7.0/managing-security/access-control/), [vended credentials](https://docs.snowflake.com/en/user-guide/tables-iceberg-configure-catalog-integration-vended-credentials), and [catalog-linked database](https://docs.snowflake.com/en/user-guide/tables-iceberg-catalog-linked-database).

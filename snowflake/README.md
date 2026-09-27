@@ -50,7 +50,7 @@ test -f airflow/.env || cp airflow/.env.example airflow/.env
 
 ## 4. 连接 Polaris 管理的 Iceberg 表
 
-现有 `STREAMIFY_AZURE_INT` 只供 Snowflake 读取 Parquet staging 文件。本项目的 Iceberg 表由另一套 Polaris catalog 管理；Snowflake 通过 Iceberg REST catalog integration 访问 Polaris，再从 Polaris 获取短期只读 SAS 访问 ADLS 文件。因此这条链路不复用 Parquet 的 storage integration。
+现有 `STREAMIFY_AZURE_INT` 只供 Snowflake 读取 Parquet staging 文件。本项目的 Iceberg 表由另一套 Polaris catalog 管理；Snowflake 使用 `CATALOG_SOURCE = POLARIS` 的 catalog integration 访问自建 Polaris，再从 Polaris 获取短期只读 SAS 访问 ADLS 文件。因此这条链路不复用 Parquet 的 storage integration。
 
 执行 [polaris_catalog_setup.sql](polaris_catalog_setup.sql) 前，有两个前置步骤需要你完成：
 
@@ -59,4 +59,4 @@ test -f airflow/.env || cp airflow/.env.example airflow/.env
 
 脚本成功后，把输出的 client ID、client secret、principal role 名称填入 SQL 文件对应的 Polaris 占位符；不要保存到 Spark principal 的配置中。完成前置步骤后，在 SQL 文件里替换 Polaris HTTPS 主机名和 catalog 名，再由 `ACCOUNTADMIN` 在 Snowsight 执行。`SYSTEM$VERIFY_CATALOG_INTEGRATION` 验证 Snowflake 到 Polaris 的认证和 metadata 访问；linked database 会发现整个 catalog 下的 namespace，最后的查询验证 Snowflake 是否能读取 `listen_events`。SQL 尚未执行，端到端结果待验证。
 
-官方参考：[Polaris CLI](https://polaris.apache.org/releases/1.7.0/command-line-interface/)、[Polaris RBAC](https://polaris.apache.org/releases/1.7.0/managing-security/access-control/)、[Iceberg REST catalog integration](https://docs.snowflake.com/en/user-guide/tables-iceberg-configure-catalog-integration-rest)、[vended credentials](https://docs.snowflake.com/en/user-guide/tables-iceberg-configure-catalog-integration-vended-credentials)、[catalog-linked database](https://docs.snowflake.com/en/user-guide/tables-iceberg-catalog-linked-database)。
+官方参考：[Snowflake Polaris catalog integration 配置](https://docs.snowflake.com/en/user-guide/tables-iceberg-configure-catalog-integration-open-catalog)、[Polaris CLI](https://polaris.apache.org/releases/1.7.0/command-line-interface/)、[Polaris RBAC](https://polaris.apache.org/releases/1.7.0/managing-security/access-control/)、[vended credentials](https://docs.snowflake.com/en/user-guide/tables-iceberg-configure-catalog-integration-vended-credentials)、[catalog-linked database](https://docs.snowflake.com/en/user-guide/tables-iceberg-catalog-linked-database)。

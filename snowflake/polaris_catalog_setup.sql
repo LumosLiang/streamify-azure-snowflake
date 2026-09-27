@@ -1,4 +1,4 @@
--- Connect Snowflake to the self-hosted Apache Polaris REST catalog.
+-- Connect Snowflake to the self-hosted Apache Polaris catalog.
 -- Before running this file:
 -- 1. Replace the placeholders with a public HTTPS Polaris endpoint and the
 --    credentials of a dedicated read-only Polaris principal.
@@ -7,10 +7,12 @@
 -- 3. The endpoint must be reachable by Snowflake. localhost and the current
 --    private-only Polaris endpoint are not reachable from Snowflake.
 
+-- CREATE OR REPLACE updates an earlier integration definition.
+-- Snowflake won't replace an integration while dependent Iceberg tables use it.
 USE ROLE ACCOUNTADMIN;
 
-CREATE CATALOG INTEGRATION IF NOT EXISTS STREAMIFY_POLARIS_INT
-  CATALOG_SOURCE = ICEBERG_REST
+CREATE OR REPLACE CATALOG INTEGRATION STREAMIFY_POLARIS_INT
+  CATALOG_SOURCE = POLARIS
   TABLE_FORMAT = ICEBERG
   REST_CONFIG = (
     CATALOG_URI = 'https://<polaris-hostname>/api/catalog'
@@ -20,7 +22,6 @@ CREATE CATALOG INTEGRATION IF NOT EXISTS STREAMIFY_POLARIS_INT
   )
   REST_AUTHENTICATION = (
     TYPE = OAUTH
-    OAUTH_TOKEN_URI = 'https://<polaris-hostname>/api/catalog/v1/oauth/tokens'
     OAUTH_CLIENT_ID = '<polaris-readonly-client-id>'
     OAUTH_CLIENT_SECRET = '<polaris-readonly-client-secret>'
     OAUTH_ALLOWED_SCOPES = ('PRINCIPAL_ROLE:<polaris-readonly-principal-role>')
@@ -33,7 +34,8 @@ SELECT SYSTEM$VERIFY_CATALOG_INTEGRATION('STREAMIFY_POLARIS_INT');
 -- With no ALLOWED_NAMESPACES filter, discover every namespace in the catalog.
 CREATE DATABASE STREAMIFY_ICEBERG
   LINKED_CATALOG = (
-    CATALOG = 'STREAMIFY_POLARIS_INT'
+    CATALOG = 'STREAMIFY_POLARIS_INT',
+    ALLOWED_WRITE_OPERATIONS = NONE
   )
   CATALOG_CASE_SENSITIVITY = CASE_SENSITIVE;
 

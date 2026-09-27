@@ -103,14 +103,15 @@ Spark SQL has created the isolated `validation` namespace and
 `spark_connectivity` Iceberg table, inserted one row, and read it back
 successfully. `stream_listen_events_iceberg.py` has also consumed Kafka,
 created and written `streamify_raw.listen_events`, and initialized its isolated
-checkpoint path. Snowflake does not yet query the Polaris-managed Iceberg
-table. A Snowflake REST catalog integration SQL template and Terraform/Caddy
+checkpoint path. `polaris/create_principal.sh` supports separate Spark writer
+and Snowflake reader profiles; the Snowflake principal has not yet been created.
+Snowflake does not yet query the Polaris-managed Iceberg table. A Snowflake REST
+catalog integration SQL template and Terraform/Caddy
 configuration for an HTTPS endpoint are prepared, but the Terraform plan has
-not been applied and the endpoint is not runtime-verified. A separate read-only
-Polaris principal also remains to be created. Do not describe Snowflake access
-as operational until the endpoint, integration, linked database, and query are
-verified. An Airflow-triggered Spark maintenance path for compaction, snapshot
-expiration, and orphan-file cleanup remains deferred.
+not been applied and the endpoint is not runtime-verified. Do not describe
+Snowflake access as operational until the endpoint, integration, linked
+database, and query are verified. An Airflow-triggered Spark maintenance path
+for compaction, snapshot expiration, and orphan-file cleanup remains deferred.
 
 Do not implement those later stages as part of a smaller Terraform, RBAC, or
 Polaris setup request. The isolated namespace and validation table are complete.

@@ -148,9 +148,9 @@ set +a
   catalogs get <catalog-name>
 ```
 
-## 6. 创建 Spark principal
+## 6. 创建客户端 principal
 
-Spark 不使用 Polaris root principal。它需要自己的 principal、principal role 和 catalog role；脚本把三者关联，并为该 catalog 授予 `CATALOG_MANAGE_CONTENT`，即建表、读取和写入权限。
+客户端不使用 Polaris root principal。用 `create_principal.sh` 创建独立 principal，并通过第一个参数选择权限配置。脚本会创建 principal、principal role、catalog role 并关联它们；同名对象已存在时会停止，不覆盖现有对象。
 
 先在 Spark Master 安装 Polaris CLI：
 
@@ -161,33 +161,37 @@ pipx install apache-polaris
 "$HOME/.local/bin/polaris" --version
 ```
 
-然后在 `polaris/` 目录运行：
+在 `polaris/` 目录运行以下命令，为 Spark 创建写入身份：
 
 ```bash
-bash create_spark_principal.sh \
-  <catalog-name> \
-  <principal-name> \
-  <principal-role-name> \
-  <catalog-role-name>
+bash create_principal.sh \
+  spark-writer \
+  <catalog-name> <principal-name> <principal-role-name> <catalog-role-name>
 ```
 
-按上一步的 catalog 示例，四个参数可以这样填写：
+例如：
 
 ```bash
-bash create_spark_principal.sh \
-  streamify_iceberg \
-  spark_client \
-  spark_principal_role \
-  spark_catalog_role
+bash create_principal.sh spark-writer \
+  streamify_iceberg spark_client spark_principal_role spark_catalog_role
 ```
 
-第一个参数必须是已经创建的 Polaris catalog。后三个是我们为 Spark 自己命名的授权对象：`spark_client` 是 Spark 登录 Polaris 时使用的 principal，`spark_principal_role` 代表这个 principal 的权限集合，`spark_catalog_role` 则是 catalog 内的角色。脚本会把它们连成下面的关系，并把建表、读表和写表权限授予 catalog role：
+`spark-writer` 会在整个 catalog 授予 `CATALOG_MANAGE_CONTENT`，用于 Spark 建表、读取和写入。后续为 Snowflake 创建只读身份时，使用 `snowflake-reader`，并额外传入目标 namespace：
+
+```bash
+bash create_principal.sh snowflake-reader \
+  <catalog-name> <principal-name> <principal-role-name> <catalog-role-name> streamify_raw
+```
+
+该配置只在 `streamify_raw` 授予 `NAMESPACE_READ_PROPERTIES`、`TABLE_LIST`、`TABLE_READ_PROPERTIES` 和 `TABLE_READ_DATA`；在 catalog 层只授予读取 catalog 属性和发现 namespace 所需的 `CATALOG_READ_PROPERTIES`、`NAMESPACE_LIST`。`TABLE_READ_DATA` 让 Polaris 为 Snowflake 签发只读存储凭据，不授予写数据权限。不要把这个 principal 配置给 Spark。
+
+两种权限关系都是：
 
 ```text
-spark_client → spark_principal_role → spark_catalog_role → CATALOG_MANAGE_CONTENT
+principal → principal role → catalog role → selected permission profile
 ```
 
-脚本先确认 catalog 存在，并拒绝覆盖同名 principal 或角色。成功时会打印下一步需要的 `clientId` 和 `clientSecret`。在 Spark Master 将它们持久化到 `~/.polaris_spark.env`：
+创建成功后脚本会打印 `clientId` 和 `clientSecret`。Spark 的输出保存到 Spark Master 的 `~/.polaris_spark.env`：
 
 ```bash
 cat > "$HOME/.polaris_spark.env" <<'EOF'
@@ -195,6 +199,10 @@ export POLARIS_SPARK_CLIENT_ID=<clientId>
 export POLARIS_SPARK_CLIENT_SECRET=<clientSecret>
 EOF
 ```
+
+Snowflake 的凭据留给下一步配置 catalog integration 使用；其 principal role 名称要与 `OAUTH_ALLOWED_SCOPES` 中的 `PRINCIPAL_ROLE:<principal-role-name>` 一致。
+
+Snowflake 的具体创建命令和凭据去向见 [Snowflake 初始化](../snowflake/README.md#4-连接-polaris-管理的-iceberg-表)。
 
 这个文件保存所有 Spark 客户端共用的 Polaris principal；`spark-iceberg.env` 会加载它。`polaris/.env` 仍只配置 Polaris 服务及其 Azure 存储身份。
 

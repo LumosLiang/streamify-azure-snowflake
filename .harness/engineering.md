@@ -109,6 +109,10 @@ variables simply because an existing local environment file still accepts them.
 - The prepared self-hosted Polaris integration uses `CATALOG_SOURCE = ICEBERG_REST`
   with vended credentials. Keep it separate from the Parquet storage integration
   and use a dedicated read-only Polaris principal, never the root or Spark writer.
+- `polaris/create_principal.sh` offers separate `spark-writer` and
+  `snowflake-reader` profiles. Keep Snowflake table-read and `TABLE_READ_DATA`
+  grants scoped to its configured namespace; do not grant it
+  `CATALOG_MANAGE_CONTENT`.
 - The planned public Polaris route is Caddy HTTPS on port 443; the NSG must keep
   ports 8181/8182 closed to public ingress. Terraform/Compose configuration is
   not a deployed endpoint; verify the plan and runtime before claiming Snowflake

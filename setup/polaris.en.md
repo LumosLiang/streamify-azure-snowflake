@@ -148,9 +148,9 @@ To inspect one catalog's Azure location and `hierarchical` setting:
   catalogs get <catalog-name>
 ```
 
-## 6. Create the Spark principal
+## 6. Create a client principal
 
-Spark does not use the Polaris root principal. It needs its own principal, principal role, and catalog role. The script connects them and grants `CATALOG_MANAGE_CONTENT` on this catalog, which permits creating, reading, and writing tables.
+Clients must not use the Polaris root principal. Use `create_principal.sh` to create a dedicated principal, choosing its permission profile with the first argument. The script creates and connects the principal, principal role, and catalog role. It stops if an object with one of those names already exists; it will not overwrite existing objects.
 
 Install the Polaris CLI on the Spark Master first:
 
@@ -161,33 +161,37 @@ pipx install apache-polaris
 "$HOME/.local/bin/polaris" --version
 ```
 
-Then run this in the `polaris/` directory:
+From the `polaris/` directory, create Spark's writer identity:
 
 ```bash
-bash create_spark_principal.sh \
-  <catalog-name> \
-  <principal-name> \
-  <principal-role-name> \
-  <catalog-role-name>
+bash create_principal.sh \
+  spark-writer \
+  <catalog-name> <principal-name> <principal-role-name> <catalog-role-name>
 ```
 
-Using the catalog example from the previous step, the four arguments can be:
+For example:
 
 ```bash
-bash create_spark_principal.sh \
-  streamify_iceberg \
-  spark_client \
-  spark_principal_role \
-  spark_catalog_role
+bash create_principal.sh spark-writer \
+  streamify_iceberg spark_client spark_principal_role spark_catalog_role
 ```
 
-The first argument must be an existing Polaris catalog. The remaining three are authorization objects we name for Spark: `spark_client` is the principal Spark uses to sign in to Polaris, `spark_principal_role` represents that principal's permission set, and `spark_catalog_role` is a role inside the catalog. The script connects them as follows, then grants table creation, read, and write access to the catalog role:
+`spark-writer` grants `CATALOG_MANAGE_CONTENT` on the entire catalog, allowing Spark to create, read, and write tables. To create Snowflake's read-only identity, choose `snowflake-reader` and add the target namespace:
+
+```bash
+bash create_principal.sh snowflake-reader \
+  <catalog-name> <principal-name> <principal-role-name> <catalog-role-name> streamify_raw
+```
+
+This profile grants `NAMESPACE_READ_PROPERTIES`, `TABLE_LIST`, `TABLE_READ_PROPERTIES`, and `TABLE_READ_DATA` only in `streamify_raw`. At catalog scope it grants only `CATALOG_READ_PROPERTIES` and `NAMESPACE_LIST`, needed to read catalog properties and discover namespaces. `TABLE_READ_DATA` lets Polaris vend read-only storage credentials to Snowflake; it does not grant write access. Do not configure this principal for Spark.
+
+Both profiles use this role chain:
 
 ```text
-spark_client → spark_principal_role → spark_catalog_role → CATALOG_MANAGE_CONTENT
+principal → principal role → catalog role → selected permission profile
 ```
 
-The script first checks that the catalog exists and refuses to overwrite a principal or role with the same name. On success, it prints the `clientId` and `clientSecret` needed in the next step. Persist them on the Spark Master in `~/.polaris_spark.env`:
+After creation, the script prints the `clientId` and `clientSecret`. Save Spark's output on the Spark Master in `~/.polaris_spark.env`:
 
 ```bash
 cat > "$HOME/.polaris_spark.env" <<'EOF'
@@ -195,6 +199,10 @@ export POLARIS_SPARK_CLIENT_ID=<clientId>
 export POLARIS_SPARK_CLIENT_SECRET=<clientSecret>
 EOF
 ```
+
+Keep Snowflake's credentials for its catalog integration. Its principal-role name must match `PRINCIPAL_ROLE:<principal-role-name>` in `OAUTH_ALLOWED_SCOPES`.
+
+For Snowflake's exact command and where to use the credentials, see [Initialize Snowflake](../snowflake/README.en.md#4-connect-to-iceberg-tables-managed-by-polaris).
 
 This file holds the Polaris principal shared by Spark clients; `spark-iceberg.env` loads it. `polaris/.env` continues to configure the Polaris service and its Azure storage identity.
 

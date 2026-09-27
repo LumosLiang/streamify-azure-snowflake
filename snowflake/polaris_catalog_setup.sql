@@ -2,8 +2,8 @@
 -- Before running this file:
 -- 1. Replace the placeholders with a public HTTPS Polaris endpoint and the
 --    credentials of a dedicated read-only Polaris principal.
--- 2. Grant that principal access only to the streamify_raw namespace and its
---    tables, including TABLE_READ_DATA for vended read-only SAS credentials.
+-- 2. Grant that principal read-only access to the whole Polaris catalog,
+--    including TABLE_READ_DATA for vended read-only SAS credentials.
 -- 3. The endpoint must be reachable by Snowflake. localhost and the current
 --    private-only Polaris endpoint are not reachable from Snowflake.
 
@@ -30,11 +30,10 @@ CREATE CATALOG INTEGRATION IF NOT EXISTS STREAMIFY_POLARIS_INT
 -- Confirms that Snowflake can authenticate to Polaris and read catalog metadata.
 SELECT SYSTEM$VERIFY_CATALOG_INTEGRATION('STREAMIFY_POLARIS_INT');
 
--- Limit automatic discovery to the namespace that contains the streaming table.
+-- With no ALLOWED_NAMESPACES filter, discover every namespace in the catalog.
 CREATE DATABASE STREAMIFY_ICEBERG
   LINKED_CATALOG = (
     CATALOG = 'STREAMIFY_POLARIS_INT'
-    ALLOWED_NAMESPACES = ('streamify_raw')
   )
   CATALOG_CASE_SENSITIVITY = CASE_SENSITIVE;
 

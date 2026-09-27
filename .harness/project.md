@@ -118,7 +118,7 @@ Polaris setup request. The isolated namespace and validation table are complete.
 The remaining sequence is:
 
 1. Apply and verify the Polaris HTTPS endpoint, create a separate read-only
-   principal, then evaluate Snowflake access.
+   principal for the whole catalog, then evaluate Snowflake access.
 2. Add compaction/snapshot/orphan-file maintenance only after Snowflake access
    has been evaluated and the maintenance path is explicitly approved.
 

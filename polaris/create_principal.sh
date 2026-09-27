@@ -5,7 +5,7 @@ usage() {
   cat <<'EOF'
 Usage:
   bash create_principal.sh spark-writer <catalog> <principal> <principal-role> <catalog-role>
-  bash create_principal.sh snowflake-reader <catalog> <principal> <principal-role> <catalog-role> <namespace>
+  bash create_principal.sh snowflake-reader <catalog> <principal> <principal-role> <catalog-role>
 
 Creates a dedicated Polaris principal using one of the supported permission
 profiles. The generated client credentials are printed once after setup.
@@ -30,10 +30,9 @@ case "$profile" in
     principal_name="$2"
     principal_role_name="$3"
     catalog_role_name="$4"
-    namespace_name=""
     ;;
   snowflake-reader)
-    if [[ $# -ne 5 ]]; then
+    if [[ $# -ne 4 ]]; then
       usage >&2
       exit 2
     fi
@@ -41,11 +40,6 @@ case "$profile" in
     principal_name="$2"
     principal_role_name="$3"
     catalog_role_name="$4"
-    namespace_name="$5"
-    if ! [[ "$namespace_name" =~ ^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z][A-Za-z0-9_-]*)*$ ]]; then
-      echo 'Namespace must be dot-separated names containing letters, digits, underscores, or hyphens.' >&2
-      exit 2
-    fi
     ;;
   *)
     echo "Unknown permission profile: ${profile}" >&2
@@ -119,12 +113,6 @@ if ! polaris_cmd catalogs get "$catalog_name" >/dev/null; then
   exit 1
 fi
 
-if [[ "$profile" == "snowflake-reader" ]] && \
-  ! polaris_cmd namespaces get --catalog "$catalog_name" "$namespace_name" >/dev/null; then
-  echo "Namespace ${namespace_name} was not found in catalog ${catalog_name}." >&2
-  exit 1
-fi
-
 ensure_absent() {
   local description="$1"
   shift
@@ -152,22 +140,18 @@ if [[ "$profile" == "spark-writer" ]]; then
     --catalog-role "$catalog_role_name" \
     CATALOG_MANAGE_CONTENT
 else
-  # Snowflake must discover catalog namespaces, but receives table access only
-  # inside the namespace selected for this principal.
-  polaris_cmd privileges catalog grant \
-    --catalog "$catalog_name" \
-    --catalog-role "$catalog_role_name" \
-    CATALOG_READ_PROPERTIES
-  polaris_cmd privileges catalog grant \
-    --catalog "$catalog_name" \
-    --catalog-role "$catalog_role_name" \
-    NAMESPACE_LIST
-
-  for privilege in NAMESPACE_READ_PROPERTIES TABLE_LIST TABLE_READ_PROPERTIES TABLE_READ_DATA; do
-    polaris_cmd privileges namespace grant \
+  # Grant read-only access throughout the catalog so Snowflake can discover
+  # every namespace and read every table, including vended storage credentials.
+  for privilege in \
+    CATALOG_READ_PROPERTIES \
+    NAMESPACE_LIST \
+    NAMESPACE_READ_PROPERTIES \
+    TABLE_LIST \
+    TABLE_READ_PROPERTIES \
+    TABLE_READ_DATA; do
+    polaris_cmd privileges catalog grant \
       --catalog "$catalog_name" \
       --catalog-role "$catalog_role_name" \
-      --namespace "$namespace_name" \
       "$privilege"
   done
 fi
@@ -183,6 +167,6 @@ printf '\nCreated %s principal %s with profile %s. Save these credentials for th
 if [[ "$profile" == "spark-writer" ]]; then
   printf 'Granted CATALOG_MANAGE_CONTENT on catalog %s.\n' "$catalog_name"
 else
-  printf 'Granted read-only table access to namespace %s in catalog %s, including TABLE_READ_DATA.\n' \
-    "$namespace_name" "$catalog_name"
+  printf 'Granted read-only access to all namespaces and tables in catalog %s, including TABLE_READ_DATA.\n' \
+    "$catalog_name"
 fi

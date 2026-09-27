@@ -169,6 +169,20 @@ bash create_principal.sh \
   <catalog-name> <principal-name> <principal-role-name> <catalog-role-name>
 ```
 
+### Parameter reference
+
+Arguments are positional; this command does not use `--name value` options. Replace angle-bracket placeholders with actual names. `spark-writer` and `snowflake-reader` are fixed profiles. Choose the remaining names, following the formats below and avoiding names that already exist.
+
+| Argument | Required | Meaning |
+| --- | --- | --- |
+| `profile` | Yes | Permission profile: `spark-writer` or `snowflake-reader`. |
+| `catalog-name` | Yes | An existing Polaris catalog. |
+| `principal-name` | Yes | Identity a client uses to authenticate to Polaris; it must be unique in Polaris. Spark and Snowflake use separate principals. |
+| `principal-role-name` | Yes | Role granted to the principal; it represents the permission set the principal can activate and must be unique in Polaris. In Snowflake mode, it must also exactly match `PRINCIPAL_ROLE:<principal-role-name>` in `OAUTH_ALLOWED_SCOPES`. |
+| `catalog-role-name` | Yes | Role inside the catalog. Its permissions depend on the selected profile; it must not duplicate a role in that catalog. |
+
+The identity and role chain works as follows: the client authenticates with the `principal` credentials and receives a `principal role`; that role is linked to a `catalog role`; the catalog role receives the selected privileges. The script requires the catalog to exist. It checks for name collisions and stops rather than overwriting an existing object. Principal, role, and catalog names must start with a letter and contain only letters, digits, `_`, or `-`.
+
 For example:
 
 ```bash
@@ -176,14 +190,23 @@ bash create_principal.sh spark-writer \
   streamify_iceberg spark_client spark_principal_role spark_catalog_role
 ```
 
-`spark-writer` grants `CATALOG_MANAGE_CONTENT` on the entire catalog, allowing Spark to create, read, and write tables. To create Snowflake's read-only identity, choose `snowflake-reader` and add the target namespace:
+`spark-writer` grants `CATALOG_MANAGE_CONTENT` on the entire catalog, allowing Spark to create, read, and write tables. `snowflake-reader` also applies to the entire catalog, but grants read-only privileges:
 
 ```bash
 bash create_principal.sh snowflake-reader \
-  <catalog-name> <principal-name> <principal-role-name> <catalog-role-name> streamify_raw
+  <catalog-name> <principal-name> <principal-role-name> <catalog-role-name>
 ```
 
-This profile grants `NAMESPACE_READ_PROPERTIES`, `TABLE_LIST`, `TABLE_READ_PROPERTIES`, and `TABLE_READ_DATA` only in `streamify_raw`. At catalog scope it grants only `CATALOG_READ_PROPERTIES` and `NAMESPACE_LIST`, needed to read catalog properties and discover namespaces. `TABLE_READ_DATA` lets Polaris vend read-only storage credentials to Snowflake; it does not grant write access. Do not configure this principal for Spark.
+This profile grants `CATALOG_READ_PROPERTIES`, `NAMESPACE_LIST`, `NAMESPACE_READ_PROPERTIES`, `TABLE_LIST`, `TABLE_READ_PROPERTIES`, and `TABLE_READ_DATA` throughout the catalog. Snowflake can discover all namespaces and read their tables. `TABLE_READ_DATA` lets Polaris vend read-only storage credentials to Snowflake; it does not grant write access. Do not configure this principal for Spark.
+
+For example, without a namespace argument:
+
+```bash
+bash create_principal.sh snowflake-reader \
+  streamify_iceberg snowflake_reader snowflake_principal_role snowflake_catalog_role
+```
+
+Here, `snowflake_principal_role` must match the role name in `OAUTH_ALLOWED_SCOPES` in `snowflake/polaris_catalog_setup.sql`.
 
 Both profiles use this role chain:
 
@@ -200,9 +223,11 @@ export POLARIS_SPARK_CLIENT_SECRET=<clientSecret>
 EOF
 ```
 
-Keep Snowflake's credentials for its catalog integration. Its principal-role name must match `PRINCIPAL_ROLE:<principal-role-name>` in `OAUTH_ALLOWED_SCOPES`.
+Keep Snowflake's credentials for its catalog integration; do not put them in Spark's principal configuration.
 
 For Snowflake's exact command and where to use the credentials, see [Initialize Snowflake](../snowflake/README.en.md#4-connect-to-iceberg-tables-managed-by-polaris).
+
+Official references: [Polaris CLI](https://polaris.apache.org/releases/1.7.0/command-line-interface/) and [Polaris RBAC](https://polaris.apache.org/releases/1.7.0/managing-security/access-control/).
 
 This file holds the Polaris principal shared by Spark clients; `spark-iceberg.env` loads it. `polaris/.env` continues to configure the Polaris service and its Azure storage identity.
 

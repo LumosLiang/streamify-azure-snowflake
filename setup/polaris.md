@@ -169,6 +169,20 @@ bash create_principal.sh \
   <catalog-name> <principal-name> <principal-role-name> <catalog-role-name>
 ```
 
+### 参数说明
+
+脚本按位置读取参数，不使用 `--name value` 形式的选项。尖括号只是占位符，运行时要替换成实际名字。`spark-writer` 和 `snowflake-reader` 是固定模式；其余名称可自行选择，但必须符合下表的格式，并且不能与现有对象重名。
+
+| 参数 | 必填 | 含义 |
+| --- | --- | --- |
+| `profile` | 是 | 权限模式：`spark-writer` 或 `snowflake-reader`。 |
+| `catalog-name` | 是 | 已存在的 Polaris catalog。 |
+| `principal-name` | 是 | 客户端登录 Polaris 时使用的身份名称；在 Polaris 中必须唯一。Spark 和 Snowflake 使用不同的 principal。 |
+| `principal-role-name` | 是 | 授给 principal 的角色，表示它可激活的权限集合；在 Polaris 中必须唯一。Snowflake 模式下，还要与 SQL 的 `OAUTH_ALLOWED_SCOPES` 中 `PRINCIPAL_ROLE:<principal-role-name>` 完全一致。 |
+| `catalog-role-name` | 是 | catalog 内的角色；权限由 `profile` 决定。同一个 catalog 内不能与已有 catalog role 重名。 |
+
+身份和两种角色的关系是：客户端用 `principal` 的凭据登录，获得 `principal role`；该角色再关联到 `catalog role`；最后 `catalog role` 获得对应权限。脚本要求 catalog 已存在，并会在创建前检查同名对象，发现已存在就停止，不覆盖它们。principal、role 和 catalog 名都必须以字母开头，只能含字母、数字、`_`、`-`。
+
 例如：
 
 ```bash
@@ -176,16 +190,27 @@ bash create_principal.sh spark-writer \
   streamify_iceberg spark_client spark_principal_role spark_catalog_role
 ```
 
-`spark-writer` 会在整个 catalog 授予 `CATALOG_MANAGE_CONTENT`，用于 Spark 建表、读取和写入。后续为 Snowflake 创建只读身份时，使用 `snowflake-reader`，并额外传入目标 namespace：
+`spark-writer` 会在整个 catalog 授予 `CATALOG_MANAGE_CONTENT`，用于 Spark 建表、读取和写入。`snowflake-reader` 也作用于整个 catalog，但只授予只读权限：
 
 ```bash
 bash create_principal.sh snowflake-reader \
-  <catalog-name> <principal-name> <principal-role-name> <catalog-role-name> streamify_raw
+  <catalog-name> <principal-name> <principal-role-name> <catalog-role-name>
 ```
 
-该配置只在 `streamify_raw` 授予 `NAMESPACE_READ_PROPERTIES`、`TABLE_LIST`、`TABLE_READ_PROPERTIES` 和 `TABLE_READ_DATA`；在 catalog 层只授予读取 catalog 属性和发现 namespace 所需的 `CATALOG_READ_PROPERTIES`、`NAMESPACE_LIST`。`TABLE_READ_DATA` 让 Polaris 为 Snowflake 签发只读存储凭据，不授予写数据权限。不要把这个 principal 配置给 Spark。
+该配置在整个 catalog 授予 `CATALOG_READ_PROPERTIES`、`NAMESPACE_LIST`、`NAMESPACE_READ_PROPERTIES`、`TABLE_LIST`、`TABLE_READ_PROPERTIES` 和 `TABLE_READ_DATA`。这样 Snowflake 能发现所有 namespace 并读取其中的表；`TABLE_READ_DATA` 让 Polaris 为 Snowflake 签发只读存储凭据，不授予写数据权限。不要把这个 principal 配置给 Spark。
 
-两种权限关系都是：
+Spark 示例中的 `streamify_iceberg` 是 catalog，`spark_client` 是 principal，`spark_principal_role` 是 principal role，`spark_catalog_role` 是 catalog role。Spark 模式不需要 namespace 参数。
+
+Snowflake 模式的例子（无需填写 namespace）：
+
+```bash
+bash create_principal.sh snowflake-reader \
+  streamify_iceberg snowflake_reader snowflake_principal_role snowflake_catalog_role
+```
+
+这里 `snowflake_principal_role` 必须与 `snowflake/polaris_catalog_setup.sql` 中 `OAUTH_ALLOWED_SCOPES` 的角色名一致。
+
+两种模式的权限关系都是：
 
 ```text
 principal → principal role → catalog role → selected permission profile
@@ -200,9 +225,11 @@ export POLARIS_SPARK_CLIENT_SECRET=<clientSecret>
 EOF
 ```
 
-Snowflake 的凭据留给下一步配置 catalog integration 使用；其 principal role 名称要与 `OAUTH_ALLOWED_SCOPES` 中的 `PRINCIPAL_ROLE:<principal-role-name>` 一致。
+Snowflake 的凭据留给下一步配置 catalog integration 使用，不要放入 Spark 的 principal 配置。
 
 Snowflake 的具体创建命令和凭据去向见 [Snowflake 初始化](../snowflake/README.md#4-连接-polaris-管理的-iceberg-表)。
+
+官方参考：[Polaris CLI](https://polaris.apache.org/releases/1.7.0/command-line-interface/)、[Polaris RBAC](https://polaris.apache.org/releases/1.7.0/managing-security/access-control/)。
 
 这个文件保存所有 Spark 客户端共用的 Polaris principal；`spark-iceberg.env` 会加载它。`polaris/.env` 仍只配置 Polaris 服务及其 Azure 存储身份。
 

@@ -70,13 +70,19 @@ docker compose -f kafka/docker-compose.yml exec broker \
 ## 4. 启动 Eventsim
 
 ```bash
-bash scripts/eventsim_startup.sh
+cp eventsim/.env.example eventsim/.env
+bash scripts/eventsim_startup.sh build
+bash scripts/eventsim_startup.sh start
 docker logs --follow million_events
 ```
 
-脚本先使用 `eventsim/Dockerfile` 构建 `events:1.0`，再启动容器。
-Eventsim 使用 host 网络，连接同机的 `localhost:9092`。
+`build` 使用 `eventsim/Dockerfile` 构建 `events:1.0`；`start` 使用现有镜像创建容器，不传参数时默认 `start`。已有 `.env` 时直接编辑，不重复复制。
+Eventsim 使用 host 网络，默认连接同机的 `localhost:9092`。
 Java 堆上限为 4 GB，容器内存上限为 5.5 GB。100 万用户、持续生成 24 小时等参数沿用原项目。
+
+`eventsim/.env` 提供运行参数：`EVENTSIM_KAFKA_BOOTSTRAP_SERVERS` 是完整的 broker 地址列表，`EVENTSIM_USERS` 是模拟用户数，`EVENTSIM_DURATION_DAYS` 是模拟时间跨度，`EVENTSIM_GROWTH_RATE`、`EVENTSIM_USER_ID`、`EVENTSIM_RANDOM_SEED` 分别设置增长率、起始用户 ID 和随机种子。`EVENTSIM_CONFIG` 是容器内 JSON 配置路径，默认 `examples/example-config.json`。原有默认参数和手动启动方式保持不变。
+
+宿主机的 `eventsim/examples/` 只读挂载到容器 `/opt/eventsim/examples/`。修改 JSON 不必重新构建镜像，重新运行生成器时读取新内容。环境参数属于容器创建参数；修改 `.env` 后，需停止并删除旧的 `million_events` 容器，再运行 `start` 创建新容器。删除会丢弃生成器当前进度，但不删除 Kafka broker 的数据。仅用 `docker start million_events` 会复用旧参数。修改 Dockerfile、JAR 或镜像内脚本时才重新 `build`。
 
 脚本用于首次创建容器。若 `million_events` 已存在，先检查状态，不要重复创建：
 

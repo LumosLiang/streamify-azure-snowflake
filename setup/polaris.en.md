@@ -235,26 +235,29 @@ This file holds the Polaris principal shared by Spark clients; `spark-iceberg.en
 
 Open a new SSH session on the Spark Master. Bash loads `spark-iceberg.env`, the Spark environment, and Spark principal credentials automatically at startup.
 
-This `SPARK_MASTER_URL` command gets the Spark Master's private IP and forms its standalone Master URL. Then start an interactive Spark SQL session yourself. Replace `<catalog-name>` with the existing Azure catalog in Polaris:
+The command uses `SPARK_MASTER_URL`, `POLARIS_CATALOG_NAME`, and the Spark principal from the loaded profile. `POLARIS_URI` is shared with the streaming job and maintenance script and defaults to the local Polaris endpoint:
 
 ```bash
+polaris_uri="${POLARIS_URI:-http://127.0.0.1:8181/api/catalog}"
+polaris_uri="${polaris_uri%/}"
+
 "$SPARK_HOME/bin/spark-sql" \
   --master "$SPARK_MASTER_URL" \
   --packages org.apache.iceberg:iceberg-spark-runtime-4.1_2.13:1.11.0,org.apache.iceberg:iceberg-azure-bundle:1.11.0 \
   --conf spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions \
   --conf spark.sql.catalog.polaris=org.apache.iceberg.spark.SparkCatalog \
   --conf spark.sql.catalog.polaris.type=rest \
-  --conf spark.sql.catalog.polaris.uri=http://127.0.0.1:8181/api/catalog \
-  --conf spark.sql.catalog.polaris.oauth2-server-uri=http://127.0.0.1:8181/api/catalog/v1/oauth/tokens \
+  --conf "spark.sql.catalog.polaris.uri=${polaris_uri}" \
+  --conf "spark.sql.catalog.polaris.oauth2-server-uri=${POLARIS_OAUTH2_URI:-${polaris_uri}/v1/oauth/tokens}" \
   --conf spark.sql.catalog.polaris.token-refresh-enabled=false \
-  --conf spark.sql.catalog.polaris.warehouse=<catalog-name> \
+  --conf "spark.sql.catalog.polaris.warehouse=${POLARIS_CATALOG_NAME}" \
   --conf spark.sql.catalog.polaris.scope=PRINCIPAL_ROLE:ALL \
   --conf spark.sql.catalog.polaris.credential="${POLARIS_SPARK_CLIENT_ID}:${POLARIS_SPARK_CLIENT_SECRET}" \
   --conf spark.sql.catalog.polaris.header.X-Iceberg-Access-Delegation=vended-credentials \
   --conf spark.sql.catalog.polaris.io-impl=org.apache.iceberg.azure.adlsv2.ADLSFileIO
 ```
 
-`polaris` is the local catalog alias for this Spark session; `<catalog-name>` is the existing Azure catalog in Polaris. `--packages` adds the Iceberg 1.11 runtime for Spark 4.1 and the Azure bundle. The remaining `spark.sql.catalog.polaris.*` parameters define the REST catalog, OAuth authentication, catalog selection, and ADLS FileIO. When creating and loading tables, Polaris vends short-lived ADLS SAS tokens to Spark, so Spark needs no static Azure storage credentials.
+`polaris` is the local catalog alias for this Spark session; `POLARIS_CATALOG_NAME` is the existing Azure catalog in Polaris. `--packages` adds the Iceberg 1.11 runtime for Spark 4.1 and the Azure bundle. The remaining `spark.sql.catalog.polaris.*` parameters define the REST catalog, OAuth authentication, catalog selection, and ADLS FileIO. When creating and loading tables, Polaris vends short-lived ADLS SAS tokens to Spark, so Spark needs no static Azure storage credentials.
 
 At the `spark-sql` prompt, open `validate_iceberg.sql` and run its statements one at a time. They create `polaris.validation`, create the `spark_connectivity` table, write one validation row only when it is absent, and query the result.
 

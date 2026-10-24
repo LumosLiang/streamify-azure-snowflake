@@ -20,6 +20,8 @@ class StreamingConfig:
     polaris_catalog_name: str
     namespace: str
     table_name: str
+    polaris_uri: str
+    polaris_oauth2_uri: str
 
     @property
     def table_identifier(self):
@@ -46,6 +48,9 @@ def require_env(variable_name):
 
 def build_streaming_config():
     """Read process environment once and construct explicit runtime configuration."""
+    polaris_uri = os.getenv(
+        "POLARIS_URI", "http://127.0.0.1:8181/api/catalog"
+    ).rstrip("/")
     return StreamingConfig(
         kafka_address=require_env("KAFKA_ADDRESS"),
         checkpoint_storage_account=require_env("ICEBERG_CHECKPOINT_STORAGE_ACCOUNT"),
@@ -55,4 +60,8 @@ def build_streaming_config():
         polaris_catalog_name=require_env("POLARIS_CATALOG_NAME"),
         namespace=os.getenv("ICEBERG_NAMESPACE", "streamify_raw"),
         table_name=os.getenv("ICEBERG_TABLE", LISTEN_EVENTS_TOPIC),
+        polaris_uri=polaris_uri,
+        polaris_oauth2_uri=os.getenv(
+            "POLARIS_OAUTH2_URI", f"{polaris_uri}/v1/oauth/tokens"
+        ),
     )

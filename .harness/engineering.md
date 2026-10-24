@@ -46,6 +46,13 @@ variables simply because an existing local environment file still accepts them.
 
 ## Python and Spark
 
+- Local development uses Python 3.12, `pyproject.toml`, and `uv.lock`.
+  Keep PySpark aligned with the VM Spark distribution. Airflow/dbt dependencies
+  remain in the Airflow image; do not install the entire platform into the root
+  environment or assume a local `.venv` is distributed to Spark workers.
+- `POLARIS_URI` and optional `POLARIS_OAUTH2_URI` are shared by the Iceberg
+  writer, maintenance script, and interactive SQL examples. Preserve localhost
+  defaults for existing host profiles, and keep derived token endpoints aligned.
 - Keep schemas explicit and maintain the current separation between schema,
   streaming utilities, and the entry script.
 - Import modules in a way that works from the documented execution directory;
@@ -59,6 +66,12 @@ variables simply because an existing local environment file still accepts them.
 
 ## Kafka and Docker Compose
 
+- Separate build operations from ordinary runs. `airflow_startup.sh` accepts
+  `build`, `init`, and `start`; `eventsim_startup.sh` accepts `build` and `start`.
+  Both default to `start`. Do not add an unconditional build back to startup.
+- Eventsim runtime arguments come from `eventsim/.env` and its JSON examples
+  directory is bind-mounted read-only. Parameter changes require a new Eventsim
+  container; never remove an existing one implicitly to apply configuration.
 - Kafka is KRaft-based. Do not reintroduce ZooKeeper.
 - New auto-created event topics use the broker's configured partition default;
   an existing topic must be expanded explicitly and can never be reduced. Match
@@ -103,9 +116,10 @@ variables simply because an existing local environment file still accepts them.
 - When changing a model, check its grain, key, join cardinality, null behavior,
   history semantics, and downstream fact/wide model use.
 - Format SQL consistently, but do not change business logic during formatting.
-- Snowflake currently reads the Parquet path through an external stage. It does
-  not yet query the Polaris-managed Iceberg table; do not merge these paths in
-  code, diagrams, or status claims without an approved integration.
+- Snowflake reads the existing Parquet path through an external stage and has a
+  separate Polaris catalog integration for Iceberg. Keep these paths distinct;
+  the Iceberg table is queried through the catalog integration, not the Parquet
+  storage integration.
 - The prepared self-hosted Polaris integration uses `CATALOG_SOURCE = POLARIS`
   with vended credentials. Keep it separate from the Parquet storage integration
   and use a dedicated read-only Polaris principal, never the root or Spark writer.
@@ -113,10 +127,10 @@ variables simply because an existing local environment file still accepts them.
   `snowflake-reader` profiles. Snowflake's reader grants read-only access to the
   whole catalog, including `TABLE_READ_DATA`; never grant it
   `CATALOG_MANAGE_CONTENT` or reuse Spark's writer principal.
-- The planned public Polaris route is Caddy HTTPS on port 443; the NSG must keep
-  ports 8181/8182 closed to public ingress. Terraform/Compose configuration is
-  not a deployed endpoint; verify the plan and runtime before claiming Snowflake
-  connectivity.
+- Snowflake connectivity through the public Caddy HTTPS endpoint and Polaris
+  catalog integration has been user-verified. Keep Polaris ports 8181/8182
+  private; do not expose them directly or imply that the Iceberg path uses the
+  Parquet storage integration.
 
 ## Polaris and Iceberg
 
@@ -126,8 +140,16 @@ variables simply because an existing local environment file still accepts them.
 - The documented Azure endpoint issue was handled by choosing a compatible
   dedicated Iceberg Storage Account. No Polaris source patch, custom image,
   upstream issue, or upstream pull request is currently part of this repository.
-- Airflow may later trigger Spark maintenance, but it must not be added during
-  setup or streaming-writer work. Spark and Iceberg perform compaction itself.
+- `airflow/dags/iceberg_maintenance_dag.py` schedules finite Spark SQL
+  maintenance through `SSHOperator` at 03:00 UTC daily. The script handles
+  compaction and seven-day snapshot expiration. Compaction is user-verified;
+  expiration and Airflow execution require runtime validation before unpausing
+  the DAG. Do not describe retention as operational until then.
+- Keep the continuous Structured Streaming writer independent from Airflow's
+  finite maintenance tasks. Do not turn an indefinitely running Spark query into
+  a normal Airflow task or imply that the DAG starts/restarts the writer.
+- Manifest rewriting, orphan-file cleanup, and metric-driven scheduling remain
+  out of scope until separately requested.
 
 ## Shell
 

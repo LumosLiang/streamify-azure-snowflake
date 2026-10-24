@@ -46,13 +46,14 @@ Kafka listen_events -> Spark Structured Streaming -> Polaris REST catalog
   the Iceberg catalog and metadata; table files live in the separate
   `streamify-iceberg` ADLS Gen2 account. Streaming checkpoints use a separate
   container and are not part of the Iceberg table.
-- Snowflake currently queries the Parquet path. The Snowflake REST catalog
-  integration and public HTTPS route for Polaris are prepared but not yet
-  deployed or runtime-verified. Do not describe Snowflake Iceberg reads as
-  working until the catalog integration and a table query succeed.
-- Airflow does not yet orchestrate the Iceberg streaming job or table
-  maintenance. Compaction, snapshot expiration, and orphan-file cleanup remain
-  deferred.
+- Snowflake queries both the Parquet staging path and the Polaris-managed Iceberg
+  table; the latter was confirmed by the user after setting up the HTTPS route
+  and REST catalog integration.
+- Airflow has a daily Iceberg maintenance DAG configured to run Spark SQL
+  compaction and seven-day snapshot expiration over SSH. Compaction was manually
+  verified, but expiration and Airflow execution are still unverified. The DAG
+  starts paused on first creation and does not supervise the streaming writer.
+  Manifest rewrites and orphan-file cleanup remain deferred.
 
 Never describe planned or partially configured work as operational.
 

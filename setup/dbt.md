@@ -8,7 +8,8 @@ dbt 安装在 Airflow 镜像中。`dev` target 指向 `STREAMIFY_STG`，`prod` t
 
 ```bash
 cd ~/streamify-azure-snowflake
-bash scripts/airflow_startup.sh
+bash scripts/airflow_startup.sh build
+bash scripts/airflow_startup.sh start
 cd airflow
 docker compose run --rm --entrypoint dbt airflow-worker debug \
   --project-dir /opt/airflow/dbt \

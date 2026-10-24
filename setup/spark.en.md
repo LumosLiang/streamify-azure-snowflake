@@ -97,7 +97,7 @@ Run the Kafka smoke test to confirm that Spark can load the connector and access
 spark-submit \
   --master "${SPARK_MASTER_URL}" \
   --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.3 \
-  validate_kafka.py
+  spark_streaming/validate_kafka.py
 ```
 
 The command should print `Kafka metadata validation passed`.
@@ -110,7 +110,7 @@ Run this only on the master:
 spark-submit \
   --master "${SPARK_MASTER_URL}" \
   --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.3,org.apache.spark:spark-hadoop-cloud_2.13:4.1.3 \
-  stream_all_events.py
+  spark_streaming/stream_all_events.py
 ```
 
 `spark-hadoop-cloud` supplies the Hadoop cloud connector and dependencies required for ADLS.
@@ -128,6 +128,8 @@ abfss://streamify@<storage-account-name>.dfs.core.windows.net/checkpoint/listen_
 
 The job has been runtime-validated: Kafka micro-batches have committed to Iceberg, and the checkpoint container contains streaming state. The existing Parquet streaming job is unchanged.
 
+The Airflow Iceberg maintenance DAG is configured to run daily compaction followed by seven-day snapshot expiration. Expiration and scheduling still need runtime verification; see [Airflow Iceberg maintenance](airflow.en.md#iceberg-maintenance) before enabling it. The long-running writer starts separately; this DAG does not start or stop it.
+
 Create the component runtime configuration from the project root on the Spark Master:
 
 ```bash
@@ -143,10 +145,13 @@ The fields have these roles:
 | --- | --- |
 | `source "$HOME/.spark_env"` | Automatically loaded after Spark setup; provides Java, `SPARK_HOME`, and `PATH`. |
 | `source "$HOME/.polaris_spark.env"` | Automatically loads the Spark principal OAuth credentials: `POLARIS_SPARK_CLIENT_ID` and `POLARIS_SPARK_CLIENT_SECRET`. |
-| `SPARK_MASTER_URL` | Points to the standalone Spark Master, which schedules the driver and executors. |
+| `SPARK_MASTER_URL` | Selects the standalone Master for executor resource allocation; in the current client mode, the driver stays on the submitting host. |
 | `KAFKA_ADDRESS` | The Kafka VM private address used to connect to the `listen_events` topic. |
+| `POLARIS_URI` | Polaris REST catalog endpoint, defaulting to `http://127.0.0.1:8181/api/catalog`; shared by the writer, maintenance script, and interactive SQL. |
 | `POLARIS_CATALOG_NAME` | The Azure catalog name in Polaris, which determines the Iceberg table Storage Account, container, and base path. |
 | `ICEBERG_CHECKPOINT_STORAGE_ACCOUNT` | The ADLS Storage Account for Structured Streaming checkpoints, written by the Spark VM managed identity and not part of the Iceberg table. |
+
+`POLARIS_OAUTH2_URI` defaults to `<catalog-uri>/v1/oauth/tokens`, derived from `POLARIS_URI`. Set it separately only for an independent authentication endpoint. Older profiles retain the localhost defaults. After editing a profile, open a new session and resubmit the job; a running Spark session does not reload configuration.
 
 `build_streaming_config()` in `iceberg_config.py` reads these environment variables once and constructs `StreamingConfig`. The main job passes that explicit configuration object to the Spark session, Kafka reader, table creation, and writer, which do not read environment variables internally.
 
@@ -158,7 +163,7 @@ Submit the job with:
 spark-submit \
   --master "$SPARK_MASTER_URL" \
   --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.3,org.apache.spark:spark-hadoop-cloud_2.13:4.1.3,org.apache.iceberg:iceberg-spark-runtime-4.1_2.13:1.11.0,org.apache.iceberg:iceberg-azure-bundle:1.11.0 \
-  stream_listen_events_iceberg.py
+  spark_streaming/stream_listen_events_iceberg.py
 ```
 
 `create_kafka_read_stream()` uses `earliest`, so the first run with a new checkpoint will process Kafka messages that are still retained. Iceberg Structured Streaming writes use `DataStreamWriter.toTable()`, and the table must exist first. See [Iceberg Structured Streaming](https://iceberg.apache.org/docs/latest/spark-structured-streaming/).

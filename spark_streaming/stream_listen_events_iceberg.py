@@ -27,10 +27,8 @@ def build_spark_session(config: StreamingConfig):
         ),
         catalog_prefix: "org.apache.iceberg.spark.SparkCatalog",
         f"{catalog_prefix}.type": "rest",
-        f"{catalog_prefix}.uri": "http://127.0.0.1:8181/api/catalog",
-        f"{catalog_prefix}.oauth2-server-uri": (
-            "http://127.0.0.1:8181/api/catalog/v1/oauth/tokens"
-        ),
+        f"{catalog_prefix}.uri": config.polaris_uri,
+        f"{catalog_prefix}.oauth2-server-uri": config.polaris_oauth2_uri,
         f"{catalog_prefix}.token-refresh-enabled": "false",
         f"{catalog_prefix}.warehouse": config.polaris_catalog_name,
         f"{catalog_prefix}.scope": "PRINCIPAL_ROLE:ALL",

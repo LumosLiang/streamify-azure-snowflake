@@ -100,7 +100,7 @@ ls -lt "${SPARK_HOME}/logs" | head
 spark-submit \
   --master "${SPARK_MASTER_URL}" \
   --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.3 \
-  validate_kafka.py
+  spark_streaming/validate_kafka.py
 ```
 
 成功时会输出 `Kafka metadata validation passed`。
@@ -113,7 +113,7 @@ spark-submit \
 spark-submit \
   --master "${SPARK_MASTER_URL}" \
   --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.3,org.apache.spark:spark-hadoop-cloud_2.13:4.1.3 \
-  stream_all_events.py
+  spark_streaming/stream_all_events.py
 ```
 
 `spark-hadoop-cloud` 提供访问 ADLS 所需的 Hadoop cloud connector 及其依赖。
@@ -132,6 +132,8 @@ abfss://streamify@<storage-account-name>.dfs.core.windows.net/checkpoint/listen_
 
 作业已完成运行验证：Kafka micro-batch 已提交到 Iceberg，checkpoint container 也已写入状态文件。现有 Parquet 流作业保持不变。
 
+Airflow 中已有每日 Iceberg 维护 DAG 的代码，依次执行小文件合并和七天快照过期；快照过期及调度仍待运行验证，启用步骤见 [Airflow Iceberg 维护](airflow.md#iceberg-维护)。持续运行的 writer 需要独立启动；维护 DAG 不负责启动或停止它。
+
 在 Spark Master 的项目根目录创建组件配置：
 
 ```bash
@@ -147,10 +149,13 @@ cp spark_streaming/spark-iceberg.env.example "$HOME/.config/streamify/spark-iceb
 | --- | --- |
 | `source "$HOME/.spark_env"` | 由 Spark 安装脚本配置为自动加载，提供 Java、`SPARK_HOME` 和 `PATH`。 |
 | `source "$HOME/.polaris_spark.env"` | 自动加载 Spark principal 的 OAuth 凭据 `POLARIS_SPARK_CLIENT_ID` 和 `POLARIS_SPARK_CLIENT_SECRET`。 |
-| `SPARK_MASTER_URL` | 指向 standalone Spark Master，`spark-submit` 据此把 driver 和 executors 调度到集群。 |
+| `SPARK_MASTER_URL` | 指向分配 executor 资源的 standalone Master；当前 client 模式的 driver 留在提交机器。 |
 | `KAFKA_ADDRESS` | Kafka VM 的私网地址；作业通过它连接 `listen_events` topic。 |
+| `POLARIS_URI` | Spark 访问的 Polaris REST catalog 地址，默认 `http://127.0.0.1:8181/api/catalog`；writer、维护脚本和交互式 SQL 使用同一项配置。 |
 | `POLARIS_CATALOG_NAME` | Polaris 中 Azure catalog 的名称，决定 Iceberg 表所在的 Storage Account、container 和根路径。 |
 | `ICEBERG_CHECKPOINT_STORAGE_ACCOUNT` | Structured Streaming checkpoint 所在的 ADLS Storage Account，由 Spark VM managed identity 写入，不属于 Iceberg 表。 |
+
+`POLARIS_OAUTH2_URI` 默认从 `POLARIS_URI` 派生为 `<catalog-uri>/v1/oauth/tokens`；只有认证服务独立部署时才额外设置。旧 profile 未填写这两项时继续使用本机地址。改 profile 后，重新打开会话并重新提交作业；运行中的 Spark session 不会自动切换配置。
 
 `iceberg_config.py` 中的 `build_streaming_config()` 只读取一次这些环境变量，并构造 `StreamingConfig`。主作业把这个显式配置对象传给 Spark session、Kafka reader、建表和 writer；这些函数不在内部读取环境变量。
 
@@ -162,7 +167,7 @@ cp spark_streaming/spark-iceberg.env.example "$HOME/.config/streamify/spark-iceb
 spark-submit \
   --master "$SPARK_MASTER_URL" \
   --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.3,org.apache.spark:spark-hadoop-cloud_2.13:4.1.3,org.apache.iceberg:iceberg-spark-runtime-4.1_2.13:1.11.0,org.apache.iceberg:iceberg-azure-bundle:1.11.0 \
-  stream_listen_events_iceberg.py
+  spark_streaming/stream_listen_events_iceberg.py
 ```
 
 `create_kafka_read_stream()` 默认从 `earliest` 读取。新 checkpoint 首次启动时会处理 Kafka 仍保留的旧消息。Iceberg 的 Structured Streaming 写入使用 `DataStreamWriter.toTable()`，表必须先创建。参考：[Iceberg Structured Streaming](https://iceberg.apache.org/docs/latest/spark-structured-streaming/)。

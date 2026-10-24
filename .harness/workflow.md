@@ -16,6 +16,12 @@ commands, explain what values they must supply, and state how to recognize
 success. Do not leave the user with commands alone or wait for them to ask for
 the official reference. Keep the handoff limited to the current step.
 
+When the user says they want to learn and asks to do the key part themselves,
+leave the central logic (for example, the main SQL or transformation) unfinished.
+Build only the surrounding scaffold, mark the exact edit point, make incomplete
+code fail safely, and hand off that one bounded task with the official reference.
+Do not treat deployment or testing as a substitute for user-authored core work.
+
 ## Scope gate
 
 Before editing, define four things:

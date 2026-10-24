@@ -41,6 +41,17 @@ An agent may analyze a supplied plan, but must not infer plan safety from
 
 ## Python and Airflow DAGs
 
+For local configuration and runtime-entry changes:
+
+```bash
+uv sync --locked
+uv run pytest
+```
+
+The shell entry tests use a fake Docker CLI and copied scripts. They must never
+start containers or read real component `.env` files. Local import checks do not
+validate distributed Spark execution or cloud access.
+
 For syntax without executing imports or external connections:
 
 ```bash

@@ -8,7 +8,8 @@ Complete [Initialize Snowflake](../snowflake/README.en.md), then build and check
 
 ```bash
 cd ~/streamify-azure-snowflake
-bash scripts/airflow_startup.sh
+bash scripts/airflow_startup.sh build
+bash scripts/airflow_startup.sh start
 cd airflow
 docker compose run --rm --entrypoint dbt airflow-worker debug \
   --project-dir /opt/airflow/dbt \

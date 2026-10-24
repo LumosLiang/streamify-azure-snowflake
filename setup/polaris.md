@@ -237,26 +237,29 @@ Snowflake 的具体创建命令和凭据去向见 [Snowflake 初始化](../snowf
 
 在 Spark Master 重新打开一个 SSH 会话。`spark-iceberg.env` 会在 Bash 启动时自动加载 Spark 环境变量和 Spark principal 凭据。
 
-这条 `SPARK_MASTER_URL` 命令在 Spark Master 上取它的私网 IP，组成 standalone Master URL。然后自己启动交互式 Spark SQL。将 `<catalog-name>` 替换为 Polaris 中已有的 Azure catalog：
+下面使用已加载 profile 中的 `SPARK_MASTER_URL`、`POLARIS_CATALOG_NAME` 和 Spark principal。`POLARIS_URI` 与流作业、维护脚本共用；未设置时使用本机 Polaris：
 
 ```bash
+polaris_uri="${POLARIS_URI:-http://127.0.0.1:8181/api/catalog}"
+polaris_uri="${polaris_uri%/}"
+
 "$SPARK_HOME/bin/spark-sql" \
   --master "$SPARK_MASTER_URL" \
   --packages org.apache.iceberg:iceberg-spark-runtime-4.1_2.13:1.11.0,org.apache.iceberg:iceberg-azure-bundle:1.11.0 \
   --conf spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions \
   --conf spark.sql.catalog.polaris=org.apache.iceberg.spark.SparkCatalog \
   --conf spark.sql.catalog.polaris.type=rest \
-  --conf spark.sql.catalog.polaris.uri=http://127.0.0.1:8181/api/catalog \
-  --conf spark.sql.catalog.polaris.oauth2-server-uri=http://127.0.0.1:8181/api/catalog/v1/oauth/tokens \
+  --conf "spark.sql.catalog.polaris.uri=${polaris_uri}" \
+  --conf "spark.sql.catalog.polaris.oauth2-server-uri=${POLARIS_OAUTH2_URI:-${polaris_uri}/v1/oauth/tokens}" \
   --conf spark.sql.catalog.polaris.token-refresh-enabled=false \
-  --conf spark.sql.catalog.polaris.warehouse=<catalog-name> \
+  --conf "spark.sql.catalog.polaris.warehouse=${POLARIS_CATALOG_NAME}" \
   --conf spark.sql.catalog.polaris.scope=PRINCIPAL_ROLE:ALL \
   --conf spark.sql.catalog.polaris.credential="${POLARIS_SPARK_CLIENT_ID}:${POLARIS_SPARK_CLIENT_SECRET}" \
   --conf spark.sql.catalog.polaris.header.X-Iceberg-Access-Delegation=vended-credentials \
   --conf spark.sql.catalog.polaris.io-impl=org.apache.iceberg.azure.adlsv2.ADLSFileIO
 ```
 
-这里的 `polaris` 是本次 Spark session 中的本地 catalog 别名；`<catalog-name>` 才是 Polaris 中已有的 Azure catalog。`--packages` 加入 Spark 4.1 对应的 Iceberg 1.11 runtime 与 Azure bundle；其余 `spark.sql.catalog.polaris.*` 参数依次定义 REST catalog、OAuth 认证、catalog 选择和 ADLS FileIO。Polaris 在建表和加载表时向 Spark 下发短期 ADLS SAS token，因此 Spark 不需要配置静态 Azure 存储凭据。
+这里的 `polaris` 是本次 Spark session 中的本地 catalog 别名；`POLARIS_CATALOG_NAME` 才是 Polaris 中已有的 Azure catalog。`--packages` 加入 Spark 4.1 对应的 Iceberg 1.11 runtime 与 Azure bundle；其余 `spark.sql.catalog.polaris.*` 参数依次定义 REST catalog、OAuth 认证、catalog 选择和 ADLS FileIO。Polaris 在建表和加载表时向 Spark 下发短期 ADLS SAS token，因此 Spark 不需要配置静态 Azure 存储凭据。
 
 进入 `spark-sql` prompt 后，打开 `validate_iceberg.sql`，逐条执行其中的 SQL。它会在 `polaris.validation` namespace 中创建 `spark_connectivity` 表、只在缺少时写入一行测试数据，并查询结果。
 

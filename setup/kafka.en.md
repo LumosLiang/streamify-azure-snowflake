@@ -70,13 +70,19 @@ This retains existing data, but partition count can only increase. New records c
 ## 4. Start Eventsim
 
 ```bash
-bash scripts/eventsim_startup.sh
+cp eventsim/.env.example eventsim/.env
+bash scripts/eventsim_startup.sh build
+bash scripts/eventsim_startup.sh start
 docker logs --follow million_events
 ```
 
-The script builds `events:1.0` using `eventsim/Dockerfile`, then starts the container.
-Eventsim uses host networking and connects to `localhost:9092` on the same VM.
+`build` builds `events:1.0` using `eventsim/Dockerfile`; `start` creates a container from the existing image. With no argument, the script defaults to `start`. Edit an existing `.env` rather than copying the example over it.
+Eventsim uses host networking and defaults to `localhost:9092` on the same VM.
 The Java heap limit is 4 GB; the container memory limit is 5.5 GB. The original one-million-user and 24-hour generation settings are unchanged.
+
+`eventsim/.env` supplies runtime parameters: `EVENTSIM_KAFKA_BOOTSTRAP_SERVERS` is the full broker address list, `EVENTSIM_USERS` sets simulated users, and `EVENTSIM_DURATION_DAYS` sets the simulated time span. `EVENTSIM_GROWTH_RATE`, `EVENTSIM_USER_ID`, and `EVENTSIM_RANDOM_SEED` control growth, the starting user ID, and the random seed. `EVENTSIM_CONFIG` is the JSON path inside the container, defaulting to `examples/example-config.json`. Existing defaults and manual startup remain in place.
+
+The host's `eventsim/examples/` directory is mounted read-only at `/opt/eventsim/examples/`. Editing JSON does not require an image build; the generator reads the updated content on its next run. Environment parameters are set when the container is created. After editing `.env`, stop and remove the old `million_events` container, then run `start` to create a new one. Removal discards the generator's current progress but does not delete broker data. `docker start million_events` reuses the old parameters. Rebuild only after changing the Dockerfile, JAR, or scripts included in the image.
 
 The script creates a new container. If `million_events` already exists, check its status before running it again:
 

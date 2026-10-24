@@ -26,6 +26,11 @@ Eventsim
 Kafka listen_events
   -> parallel Spark Structured Streaming job
   -> Polaris REST catalog -> ADLS Gen2 Iceberg table
+  -> Snowflake reads the table through a Polaris catalog integration
+
+Airflow
+  -> schedules Snowflake COPY INTO and dbt
+  -> daily Iceberg maintenance DAG configured (runtime validation pending)
 ```
 
 `status_change_events` may be produced by Eventsim, but the current Spark job
@@ -43,12 +48,18 @@ are not yet part of the dimensional model.
 | Kafka | `kafka/docker-compose.yml`, `setup/kafka*.md` | KRaft broker, Schema Registry, Control Center and tools |
 | Spark | `spark_streaming/`, `scripts/spark_setup.sh`, `setup/spark*.md` | Consume three Kafka topics into partitioned Parquet and checkpoints; a separate job writes `listen_events` to Iceberg |
 | Snowflake | `snowflake/` | Roles, users, database/schema/warehouse, storage integration, file format and stage |
-| Airflow | `airflow/`, `setup/airflow*.md` | Schedule Snowflake loads and dbt commands |
+| Airflow | `airflow/`, `setup/airflow*.md` | Schedule Snowflake loads and dbt; Iceberg maintenance DAG is configured but runtime validation is pending |
 | dbt | `dbt/`, `setup/dbt*.md` | Seeds, dimensions, fact table and wide view |
 | Polaris | `polaris/`, `setup/polaris*.md` | Catalog and PostgreSQL metadata services; the Spark SQL validation table and the parallel Kafka-to-Iceberg `listen_events` path are verified |
 
 ## Runtime topology and identities
 
+- Local Python development uses a root uv project and `.venv` with Python 3.12
+  and PySpark 4.1.3. Airflow/dbt runtime dependencies remain in Docker.
+- Airflow/Eventsim entry scripts expose build and run as separate operations.
+  Eventsim reads local runtime parameters and a mounted JSON configuration;
+  the Spark Iceberg writer and maintenance script share configurable Polaris
+  endpoints. These file changes require deployment before affecting the VMs.
 - Kafka VM: Kafka runs through Compose. New auto-created event topics default
   to four partitions; existing topics require an explicit online alteration.
   Eventsim is created manually by `scripts/eventsim_startup.sh` and has no
@@ -85,6 +96,11 @@ actual data-plane operation.
   shell is not a durable process supervisor.
 - The parallel Iceberg writer has consumed `listen_events`, committed micro-batches
   to `streamify_raw.listen_events`, and created state in its checkpoint container.
+- The user confirmed Snowflake can query `polaris.streamify_raw.listen_events`.
+- The user ran `rewrite_data_files`; Iceberg's snapshots metadata showed append
+  snapshots followed by a `replace` snapshot from compaction. Snapshot expiration
+  has not yet been run, so old files visible in ADLS may still be referenced by
+  retained snapshots.
 - The live `listen_events` topic was expanded from one to four partitions. After
   a restart with the same checkpoint, the Iceberg writer resumed offsets for all
   four partitions. A short observation recorded roughly 25.5 produced events per
@@ -95,32 +111,24 @@ must re-check live state before making operational claims.
 
 ## Work in progress and deferred decisions
 
-The current Iceberg preparation adds a separate HNS-enabled Storage Account with
-private `streamify-iceberg` and `streamify-checkpoints` containers, Polaris Azure
-credentials, one Polaris catalog, and a Spark principal. The catalog points to
-the dedicated table container and its RBAC is configured.
-Spark SQL has created the isolated `validation` namespace and
-`spark_connectivity` Iceberg table, inserted one row, and read it back
-successfully. `stream_listen_events_iceberg.py` has also consumed Kafka,
-created and written `streamify_raw.listen_events`, and initialized its isolated
-checkpoint path. `polaris/create_principal.sh` supports separate Spark writer
-and Snowflake reader profiles; the Snowflake principal has not yet been created.
-Snowflake does not yet query the Polaris-managed Iceberg table. A Snowflake REST
-catalog integration SQL template and Terraform/Caddy
-configuration for an HTTPS endpoint are prepared, but the Terraform plan has
-not been applied and the endpoint is not runtime-verified. Do not describe
-Snowflake access as operational until the endpoint, integration, linked
-database, and query are verified. An Airflow-triggered Spark maintenance path
-for compaction, snapshot expiration, and orphan-file cleanup remains deferred.
+The separate HNS-enabled Iceberg Storage Account, Polaris catalog, and Spark
+principal are configured. Spark SQL validation succeeded, the Kafka-to-Iceberg
+writer has committed data to `streamify_raw.listen_events`, and the user
+confirmed Snowflake can query that table. A manual compaction was also observed
+as a `replace` snapshot after the append snapshots.
 
-Do not implement those later stages as part of a smaller Terraform, RBAC, or
-Polaris setup request. The isolated namespace and validation table are complete.
-The remaining sequence is:
+`scripts/spark_iceberg_maintenance.sh compact` has passed manual runtime
+validation according to the user. The script now also calls snapshot expiration
+with a UTC cutoff of seven days and retains the latest snapshot. The Airflow DAG
+is configured for 03:00 UTC daily, starts paused on first creation, and invokes
+both operations through SSH. Expiration and Airflow execution have not yet been
+runtime-verified; seven-day retention is not operational until the DAG is
+deployed, manually tested, and unpaused.
 
-1. Apply and verify the Polaris HTTPS endpoint, create a separate read-only
-   principal for the whole catalog, then evaluate Snowflake access.
-2. Add compaction/snapshot/orphan-file maintenance only after Snowflake access
-   has been evaluated and the maintenance path is explicitly approved.
+The Airflow DAG only runs finite maintenance operations. It does not supervise
+or restart the long-running Structured Streaming writer; that writer remains a
+separately started process. Manifest rewriting and orphan-file cleanup are not
+implemented.
 
 The Azure SDK endpoint-parsing issue has a documented storage-account naming
 workaround in `polaris/`. No custom Polaris image or source patch is deployed,
